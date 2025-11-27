@@ -22,3 +22,6 @@ Thumbs.db
 uv.lock
 deployment/*/data/
 deployment/
+
+# tools
+.claude/

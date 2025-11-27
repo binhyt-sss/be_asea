@@ -169,7 +169,9 @@ async def get_users_by_zone(db: AsyncSession, zone_id: str) -> List[User]:
     """
     result = await db.execute(
         select(User)
-        .where(User.zone_id == zone_id)
+        .join(User.zones)
+        .where(WorkingZone.zone_id == zone_id)
+        .options(selectinload(User.zones))
         .order_by(User.global_id)
     )
     return result.scalars().all()

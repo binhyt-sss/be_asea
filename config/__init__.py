@@ -6,13 +6,12 @@ Usage:
 
     settings = get_settings()
     print(settings.database.host)
-    print(settings.redis.enabled)
+    print(settings.kafka.enabled)
 """
 
 from .settings import (
     Settings,
     DatabaseSettings,
-    RedisSettings,
     KafkaSettings,
     APISettings,
     LoggingSettings,
@@ -23,7 +22,6 @@ from .settings import (
 __all__ = [
     'Settings',
     'DatabaseSettings',
-    'RedisSettings',
     'KafkaSettings',
     'APISettings',
     'LoggingSettings',

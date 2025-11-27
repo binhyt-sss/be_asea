@@ -8,7 +8,7 @@ from sqlalchemy import select, delete, func
 from sqlalchemy.orm import selectinload
 from typing import List, Optional
 
-from database.models import WorkingZone, User
+from database.models import WorkingZone, User, user_zone_association
 from schemas import database as schemas
 
 
@@ -174,9 +174,10 @@ async def get_zones_with_user_counts(db: AsyncSession) -> List[dict]:
         select(
             WorkingZone.zone_id,
             WorkingZone.zone_name,
-            func.count(User.id).label('user_count')
+            func.count(user_zone_association.c.user_id).label('user_count')
         )
-        .outerjoin(User)
+        .select_from(WorkingZone)
+        .outerjoin(user_zone_association, WorkingZone.zone_id == user_zone_association.c.zone_id)
         .group_by(WorkingZone.zone_id, WorkingZone.zone_name)
         .order_by(WorkingZone.zone_id)
     )

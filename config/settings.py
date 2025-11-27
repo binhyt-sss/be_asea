@@ -41,30 +41,6 @@ class DatabaseSettings(BaseModel):
         return v
 
 
-class RedisSettings(BaseModel):
-    """Redis cache configuration with string-to-bool parsing"""
-    enabled: bool = Field(default=True, description="Enable Redis caching")
-    host: str = Field(default="localhost", description="Redis host")
-    port: int = Field(default=6379, ge=1, le=65535, description="Redis port")
-    db: int = Field(default=0, ge=0, le=15, description="Redis database number")
-
-    @field_validator('enabled', mode='before')
-    @classmethod
-    def parse_enabled(cls, v):
-        """Parse string 'true'/'false' to boolean (fixes fragile string parsing issue)"""
-        if isinstance(v, str):
-            return v.lower() in ('true', '1', 'yes', 'on')
-        return bool(v)
-
-    @field_validator('port')
-    @classmethod
-    def validate_port(cls, v: int) -> int:
-        """Validate port range"""
-        if not (1 <= v <= 65535):
-            raise ValueError(f"Redis port must be between 1-65535, got {v}")
-        return v
-
-
 class KafkaSettings(BaseModel):
     """Kafka messaging configuration (fixes hardcoded values issue)"""
     enabled: bool = Field(default=True, description="Enable Kafka messaging")
@@ -157,10 +133,6 @@ class Settings(BaseSettings):
         default_factory=DatabaseSettings,
         description="PostgreSQL database settings"
     )
-    redis: RedisSettings = Field(
-        default_factory=RedisSettings,
-        description="Redis cache settings"
-    )
     kafka: KafkaSettings = Field(
         default_factory=KafkaSettings,
         description="Kafka messaging settings"
@@ -188,12 +160,6 @@ class Settings(BaseSettings):
         logger.info(f"Database: {self.database.host}:{self.database.port}/{self.database.database}")
         if self.database.password in ['1', 'password', 'admin', 'root']:
             logger.warning("⚠️  WEAK DATABASE PASSWORD - Change for production!")
-
-        # Redis config
-        status = "ENABLED" if self.redis.enabled else "DISABLED"
-        logger.info(f"Redis: {status} ({self.redis.host}:{self.redis.port})")
-        if not self.redis.enabled:
-            logger.warning("⚠️  Redis caching disabled - Performance may be reduced")
 
         # Kafka config
         status = "ENABLED" if self.kafka.enabled else "DISABLED"

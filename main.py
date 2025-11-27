@@ -19,19 +19,18 @@ from api.routers import (
     users_router,
     zones_router,
     stats_router,
-    kafka_router,
-    cache_router
+    kafka_router
 )
 
 # Services
 from api.services import KafkaService
-from api.dependencies import get_redis_cache, get_message_buffer
+from api.dependencies import get_message_buffer
 
 # Create unified app
 app = FastAPI(
     title="Person ReID Backend - Unified API",
     version="2.0.0",
-    description="Async SQLAlchemy + Redis + Kafka in modular architecture"
+    description="Async SQLAlchemy + Kafka in modular architecture"
 )
 
 # Global service instances
@@ -64,18 +63,14 @@ async def startup_event():
 async def shutdown_event():
     """Gracefully shutdown all services"""
     logger.info("Shutting down Unified Backend Service...")
-    
-    # Close Redis
-    redis_cache = get_redis_cache()
-    await redis_cache.close()
-    
+
     # Close database
     await close_db()
-    
+
     # Stop Kafka consumer
     if kafka_service:
         kafka_service.stop()
-    
+
     logger.info("✅ Shutdown complete")
 
 
@@ -84,7 +79,6 @@ app.include_router(users_router)
 app.include_router(zones_router)
 app.include_router(stats_router)
 app.include_router(kafka_router)
-app.include_router(cache_router)
 
 
 @app.get("/")
@@ -93,11 +87,10 @@ async def root():
     return {
         "service": "Person ReID Unified Backend",
         "version": "2.0.0",
-        "architecture": "Async SQLAlchemy + Redis + Kafka",
+        "architecture": "Async SQLAlchemy + Kafka",
         "endpoints": {
             "database": "/users, /zones, /stats",
             "kafka": "/ws/alerts, /messages/recent",
-            "cache": "/cache/stats, /cache/invalidate/users-dict",
             "docs": "/docs"
         }
     }
@@ -106,11 +99,8 @@ async def root():
 @app.get("/health")
 async def health_check():
     """Health check with service status"""
-    redis_cache = get_redis_cache()
     message_buffer = get_message_buffer()
-    
-    redis_stats = await redis_cache.get_stats() if redis_cache.is_available() else {"enabled": False}
-    
+
     return {
         "status": "healthy",
         "service": "unified_backend",
@@ -119,8 +109,7 @@ async def health_check():
         "orm": "SQLAlchemy 2.0 async",
         "kafka_enabled": settings.kafka.enabled,
         "kafka_running": kafka_service.is_running() if kafka_service else False,
-        "messages_received": len(message_buffer),
-        "redis": redis_stats
+        "messages_received": len(message_buffer)
     }
 
 
@@ -136,11 +125,10 @@ if __name__ == "__main__":
     print("   Swagger UI:   http://localhost:8000/docs")
     print("   ReDoc:        http://localhost:8000/redoc")
     print("\n💡 Modular Architecture:")
-    print("   • Users:      /users (CRUD + dict cache)")
+    print("   • Users:      /users (CRUD)")
     print("   • Zones:      /zones (CRUD)")
     print("   • Stats:      /stats (aggregates)")
     print("   • Kafka:      /ws/alerts, /messages/recent")
-    print("   • Cache:      /cache/stats, /cache/invalidate")
     print("   • Health:     /health")
     print("\n" + "="*70 + "\n")
     

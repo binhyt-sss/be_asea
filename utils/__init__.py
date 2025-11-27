@@ -1,7 +1,8 @@
 """
 Utility modules for backend services
 """
-from .redis_cache import RedisCache
+from .kafka_manager import KafkaManager
 
-__all__ = ['RedisCache']
+__all__ = ['KafkaManager']
+
 
