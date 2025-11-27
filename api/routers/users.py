@@ -100,3 +100,13 @@ async def get_users_dict(
     if redis_cache.is_available():
         await redis_cache.cache_users_dict(users_dict, ttl=3600)
     return users_dict
+
+
+@router.get("/by-zone/{zone_id}", response_model=List[schemas.User])
+async def get_users_by_zone(
+    zone_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """Get all users in a specific zone"""
+    users = await user_crud.get_users_by_zone(db, zone_id)
+    return users

@@ -4,6 +4,7 @@ CRUD operations for working zones
 """
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 
@@ -49,3 +50,28 @@ async def create_zone(
     
     zone = await zone_crud.create_zone(db, zone_data)
     return zone
+
+
+@router.put("/{zone_id}", response_model=schemas.WorkingZone)
+async def update_zone(
+    zone_id: str,
+    zone_data: schemas.WorkingZoneUpdate,
+    db: AsyncSession = Depends(get_db)
+):
+    """Update zone"""
+    zone = await zone_crud.update_zone(db, zone_id, zone_data)
+    if zone is None:
+        raise HTTPException(status_code=404, detail="Zone not found")
+    return zone
+
+
+@router.delete("/{zone_id}")
+async def delete_zone(
+    zone_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """Delete zone"""
+    success = await zone_crud.delete_zone(db, zone_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Zone not found")
+    return JSONResponse(content={"message": f"Zone {zone_id} deleted successfully"})
