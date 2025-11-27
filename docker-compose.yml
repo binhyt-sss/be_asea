@@ -52,9 +52,12 @@ services:
       - ./logs:/app/logs
     networks:
       - person-reid-network
-
+      - posgrest_default  # Connect to existing postgres network
+    external_links:
+      - posgrest-postgres_db-1:postgres_db
 
 networks:
   person-reid-network:
     driver: bridge
-  # Backend API Service
+  posgrest_default:
+    external: true  # Use existing postgres network
