@@ -1,0 +1,33 @@
+# Backend API Dependencies - Async SQLAlchemy + asyncpg
+
+# Web Framework
+fastapi>=0.104.0
+uvicorn>=0.24.0
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+
+# Database - Async SQLAlchemy
+sqlalchemy[asyncio]>=2.0.0
+asyncpg>=0.29.0
+alembic>=1.12.0
+
+# Kafka
+confluent-kafka>=2.3.0
+
+# Redis Cache
+redis>=4.5.0
+
+# Utilities
+loguru>=0.6.0
+pyyaml>=6.0
+python-dotenv>=0.19.0
+
+# WebSocket Support
+websockets>=11.0
+
+# Testing UI
+streamlit>=1.51.0
+plotly>=6.0.0
+
+# Stress Testing
+aiohttp>=3.9.0
