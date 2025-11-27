@@ -22,9 +22,9 @@ services:
       PERSON_REID_REFRESH_INTERVAL: ${REFRESH_INTERVAL:-5}
       PERSON_REID_DEBUG: ${DEBUG:-false}
     
-    volumes:
-      # Mount config for easy updates
-      - ./config.yaml:/app/config.yaml:ro
+    # Config is already included in the image from person_reid_ui/config.yaml
+    # volumes:
+    #   - ./person_reid_ui/config.yaml:/app/config.yaml:ro
     
     restart: unless-stopped
     

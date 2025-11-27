@@ -124,27 +124,63 @@ class Settings(BaseSettings):
         env_file_encoding='utf-8',
         case_sensitive=False,
         env_prefix='',  # No global prefix
-        env_nested_delimiter='_',  # Support POSTGRES_HOST → database.host
         extra='ignore'  # Ignore unknown env vars
     )
 
-    # Nested settings with env mapping
-    database: DatabaseSettings = Field(
-        default_factory=DatabaseSettings,
-        description="PostgreSQL database settings"
-    )
-    kafka: KafkaSettings = Field(
-        default_factory=KafkaSettings,
-        description="Kafka messaging settings"
-    )
-    api: APISettings = Field(
-        default_factory=APISettings,
-        description="API server settings"
-    )
-    logging: LoggingSettings = Field(
-        default_factory=LoggingSettings,
-        description="Logging settings"
-    )
+    # Direct env var mapping for flat structure
+    postgres_host: str = Field(default="localhost", alias="POSTGRES_HOST")
+    postgres_port: int = Field(default=5432, alias="POSTGRES_PORT")
+    postgres_user: str = Field(default="hailt", alias="POSTGRES_USER")
+    postgres_password: str = Field(default="1", alias="POSTGRES_PASSWORD")
+    postgres_db: str = Field(default="hailt_imespro", alias="POSTGRES_DB")
+    postgres_table: str = Field(default="user", alias="POSTGRES_TABLE")
+
+    kafka_enabled: bool = Field(default=True, alias="KAFKA_ENABLED")
+    kafka_bootstrap_servers: str = Field(default="localhost:9092", alias="KAFKA_BOOTSTRAP_SERVERS")
+    kafka_topic: str = Field(default="person_reid_alerts", alias="KAFKA_TOPIC")
+    kafka_group_id: str = Field(default="person_reid_ui_consumers", alias="KAFKA_GROUP_ID")
+
+    api_host: str = Field(default="0.0.0.0", alias="API_HOST")
+    api_database_api_port: int = Field(default=8001, alias="API_DATABASE_API_PORT")
+    api_kafka_api_port: int = Field(default=8004, alias="API_KAFKA_API_PORT")
+
+    logging_level: str = Field(default="INFO", alias="LOGGING_LEVEL")
+
+    @property
+    def database(self) -> DatabaseSettings:
+        """Build DatabaseSettings from flat env vars"""
+        return DatabaseSettings(
+            host=self.postgres_host,
+            port=self.postgres_port,
+            user=self.postgres_user,
+            password=self.postgres_password,
+            database=self.postgres_db,
+            table=self.postgres_table
+        )
+
+    @property
+    def kafka(self) -> KafkaSettings:
+        """Build KafkaSettings from flat env vars"""
+        return KafkaSettings(
+            enabled=self.kafka_enabled,
+            bootstrap_servers=self.kafka_bootstrap_servers,
+            topic=self.kafka_topic,
+            group_id=self.kafka_group_id
+        )
+
+    @property
+    def api(self) -> APISettings:
+        """Build APISettings from flat env vars"""
+        return APISettings(
+            host=self.api_host,
+            database_api_port=self.api_database_api_port,
+            kafka_api_port=self.api_kafka_api_port
+        )
+
+    @property
+    def logging(self) -> LoggingSettings:
+        """Build LoggingSettings from flat env vars"""
+        return LoggingSettings(level=self.logging_level)
 
     def model_post_init(self, __context) -> None:
         """Log configuration status after initialization"""
