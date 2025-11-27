@@ -14,18 +14,17 @@ class UserBase(BaseModel):
     """Base user fields shared across schemas"""
     global_id: int = Field(..., description="Unique global identifier for the user")
     name: str = Field(..., min_length=1, max_length=100, description="User's name")
-    zone_id: Optional[str] = Field(None, description="Assigned working zone ID")
 
 
 class UserCreate(UserBase):
     """Schema for creating a new user"""
-    pass
+    zone_ids: Optional[List[str]] = Field(default_factory=list, description="List of zone IDs to assign")
 
 
 class UserUpdate(BaseModel):
     """Schema for updating user fields (all optional)"""
     name: Optional[str] = Field(None, min_length=1, max_length=100)
-    zone_id: Optional[str] = None
+    zone_ids: Optional[List[str]] = Field(None, description="List of zone IDs to assign (replaces existing)")
 
 
 class User(UserBase):
@@ -33,6 +32,13 @@ class User(UserBase):
     id: int
     created_at: datetime
     updated_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class UserWithZones(User):
+    """User with list of assigned zones (for relationship display)"""
+    zones: List["WorkingZone"] = Field(default_factory=list, description="Zones assigned to this user")
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -90,6 +96,7 @@ __all__ = [
     'User',
     'UserCreate',
     'UserUpdate',
+    'UserWithZones',
     'WorkingZone',
     'WorkingZoneCreate',
     'WorkingZoneUpdate',

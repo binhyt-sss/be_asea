@@ -26,7 +26,7 @@ async def get_all_users(db: AsyncSession, skip: int = 0, limit: int = 100) -> Li
     """
     result = await db.execute(
         select(User)
-        .options(selectinload(User.zone))  # Eager load zone relationship
+        .options(selectinload(User.zones))  # Eager load zones relationship
         .order_by(User.global_id)
         .offset(skip)
         .limit(limit)
@@ -47,7 +47,7 @@ async def get_user_by_id(db: AsyncSession, user_id: int) -> Optional[User]:
     """
     result = await db.execute(
         select(User)
-        .options(selectinload(User.zone))
+        .options(selectinload(User.zones))
         .where(User.id == user_id)
     )
     return result.scalar_one_or_none()
@@ -66,7 +66,7 @@ async def get_user_by_global_id(db: AsyncSession, global_id: int) -> Optional[Us
     """
     result = await db.execute(
         select(User)
-        .options(selectinload(User.zone))
+        .options(selectinload(User.zones))
         .where(User.global_id == global_id)
     )
     return result.scalar_one_or_none()
@@ -74,29 +74,37 @@ async def get_user_by_global_id(db: AsyncSession, global_id: int) -> Optional[Us
 
 async def create_user(db: AsyncSession, user_in: schemas.UserCreate) -> User:
     """
-    Create a new user
+    Create a new user with optional zone assignments
     
     Args:
         db: Database session
-        user_in: User creation schema
+        user_in: User creation schema with zone_ids
         
     Returns:
         Created User object
     """
     db_user = User(
         global_id=user_in.global_id,
-        name=user_in.name,
-        zone_id=user_in.zone_id
+        name=user_in.name
     )
+    
+    # Assign zones if provided
+    if user_in.zone_ids:
+        result = await db.execute(
+            select(WorkingZone).where(WorkingZone.zone_id.in_(user_in.zone_ids))
+        )
+        zones = result.scalars().all()
+        db_user.zones = list(zones)
+    
     db.add(db_user)
-    await db.flush()  # Flush to get ID without committing
-    await db.refresh(db_user)  # Refresh to load defaults and relationships
+    await db.flush()
+    await db.refresh(db_user, ["zones"])
     return db_user
 
 
 async def update_user(db: AsyncSession, user_id: int, user_in: schemas.UserUpdate) -> Optional[User]:
     """
-    Update existing user
+    Update existing user including zone assignments
     
     Args:
         db: Database session
@@ -110,13 +118,23 @@ async def update_user(db: AsyncSession, user_id: int, user_in: schemas.UserUpdat
     if not user:
         return None
     
-    # Update only provided fields
+    # Update zone assignments if provided
     update_data = user_in.model_dump(exclude_unset=True)
+    if "zone_ids" in update_data:
+        zone_ids = update_data.pop("zone_ids")
+        if zone_ids is not None:
+            result = await db.execute(
+                select(WorkingZone).where(WorkingZone.zone_id.in_(zone_ids))
+            )
+            zones = result.scalars().all()
+            user.zones = list(zones)
+    
+    # Update other fields
     for field, value in update_data.items():
         setattr(user, field, value)
     
     await db.flush()
-    await db.refresh(user)
+    await db.refresh(user, ["zones"])
     return user
 
 

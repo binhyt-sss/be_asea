@@ -3,7 +3,7 @@ SQLAlchemy ORM Models for Database Tables
 Defines actual database table structures using SQLAlchemy async ORM
 """
 
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, func, Index
+from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, func, Index, Table
 from sqlalchemy.orm import DeclarativeBase, relationship, Mapped, mapped_column
 from datetime import datetime
 from typing import Optional, List
@@ -14,10 +14,20 @@ class Base(DeclarativeBase):
     pass
 
 
+# Association table for Many-to-Many relationship between User and WorkingZone
+user_zone_association = Table(
+    "user_zone_association",
+    Base.metadata,
+    Column("user_id", Integer, ForeignKey("user.id", ondelete="CASCADE"), primary_key=True),
+    Column("zone_id", String, ForeignKey("working_zone.zone_id", ondelete="CASCADE"), primary_key=True),
+    Column("created_at", DateTime(timezone=True), server_default=func.now(), nullable=False)
+)
+
+
 class User(Base):
     """
     User table - Person ReID user information
-    Relationship: Many-to-One with WorkingZone
+    Relationship: Many-to-Many with WorkingZone
     """
     __tablename__ = "user"
 
@@ -27,14 +37,6 @@ class User(Base):
     # User Data
     global_id: Mapped[int] = mapped_column(Integer, unique=True, nullable=False, index=True)
     name: Mapped[str] = mapped_column(String, nullable=False)
-    
-    # Foreign Key to WorkingZone
-    zone_id: Mapped[Optional[str]] = mapped_column(
-        String, 
-        ForeignKey("working_zone.zone_id", ondelete="SET NULL"), 
-        nullable=True,
-        index=True
-    )
     
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
@@ -48,20 +50,22 @@ class User(Base):
         nullable=True
     )
 
-    # Relationship
-    zone: Mapped[Optional["WorkingZone"]] = relationship(
-        "WorkingZone", 
-        back_populates="users"
+    # Many-to-Many Relationship with WorkingZone
+    zones: Mapped[List["WorkingZone"]] = relationship(
+        "WorkingZone",
+        secondary=user_zone_association,
+        back_populates="users",
+        lazy="selectin"
     )
 
     def __repr__(self) -> str:
-        return f"<User(id={self.id}, global_id={self.global_id}, name='{self.name}', zone_id={self.zone_id})>"
+        return f"<User(id={self.id}, global_id={self.global_id}, name='{self.name}', zones_count={len(self.zones)})>"
 
 
 class WorkingZone(Base):
     """
     Working Zone table - Polygon coordinates for zones
-    Relationship: One-to-Many with User
+    Relationship: Many-to-Many with User
     """
     __tablename__ = "working_zone"
 
@@ -93,11 +97,12 @@ class WorkingZone(Base):
         nullable=True
     )
 
-    # Relationship
+    # Many-to-Many Relationship with User
     users: Mapped[List["User"]] = relationship(
-        "User", 
-        back_populates="zone",
-        cascade="all, delete-orphan"  # Delete users when zone is deleted
+        "User",
+        secondary=user_zone_association,
+        back_populates="zones",
+        lazy="selectin"
     )
 
     def __repr__(self) -> str:
@@ -106,7 +111,6 @@ class WorkingZone(Base):
 
 # Indexes for performance
 Index("idx_user_global_id", User.global_id)
-Index("idx_user_zone_id", User.zone_id)
 
 
 
