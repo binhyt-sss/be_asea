@@ -13,13 +13,13 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for caching
-COPY requirements.txt .
+COPY person_reid_ui/requirements.txt .
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
-COPY . .
+# Copy application code from person_reid_ui directory
+COPY person_reid_ui/ .
 
 # Expose Streamlit port
 EXPOSE 8501

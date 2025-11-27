@@ -54,8 +54,8 @@ MIGRATION.md
 QUICKSTART.md
 STRUCTURE.md
 
-# Frontend
-person_reid_ui/
+# Frontend - Note: person_reid_ui is NOT ignored to allow UI container build
+# person_reid_ui/
 
 # Alembic versions (optional - comment out if you need migrations in container)
 # alembic/versions/
