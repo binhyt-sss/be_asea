@@ -2,8 +2,9 @@ version: '3.8'
 
 services:
   ui:
-    build: .
-    dockerfile: person_reid_ui/Dockerfile
+    build: 
+      context: .
+      dockerfile: person_reid_ui/Dockerfile
     container_name: person-reid-ui
     ports:
       - "4501:8501"
