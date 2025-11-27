@@ -1,0 +1,44 @@
+# Configuration for Person ReID UI Module
+# This file can be customized per environment
+
+# API Configuration
+api:
+  base_url: "http://localhost:8000"
+  timeout: 30
+  retry_attempts: 3
+  retry_delay: 1
+
+# UI Configuration
+ui:
+  title: "Person ReID System"
+  page_icon: "👤"
+  layout: "wide"
+  port: 8501
+  theme: "light"  # light or dark
+
+# Feature Flags
+features:
+  auto_refresh: true
+  auto_refresh_interval: 5  # seconds
+  enable_charts: true
+  enable_export: true
+  debug_mode: false
+
+# Display Settings
+display:
+  max_users_per_page: 100
+  max_zones_per_page: 100
+  max_messages: 500
+  date_format: "%Y-%m-%d %H:%M:%S"
+
+# Chart Settings
+charts:
+  color_scheme: "plotly"  # plotly, seaborn, custom
+  default_height: 500
+  animation: true
+
+# Alert Settings
+alerts:
+  show_notifications: true
+  sound_enabled: false
+  desktop_notifications: false

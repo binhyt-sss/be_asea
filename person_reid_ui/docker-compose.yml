@@ -1,0 +1,44 @@
+# Docker Compose for Person ReID UI
+# Run standalone UI module
+
+version: '3.8'
+
+services:
+  ui:
+    build: .
+    container_name: person-reid-ui
+    ports:
+      - "8501:8501"
+    environment:
+      # API Configuration
+      PERSON_REID_API_URL: ${API_URL:-http://localhost:8000}
+      PERSON_REID_API_TIMEOUT: ${API_TIMEOUT:-30}
+      
+      # UI Configuration
+      PERSON_REID_UI_TITLE: ${UI_TITLE:-Person ReID System}
+      PERSON_REID_UI_PORT: 8501
+      
+      # Feature Flags
+      PERSON_REID_AUTO_REFRESH: ${AUTO_REFRESH:-true}
+      PERSON_REID_REFRESH_INTERVAL: ${REFRESH_INTERVAL:-5}
+      PERSON_REID_DEBUG: ${DEBUG:-false}
+    
+    volumes:
+      # Mount config for easy updates
+      - ./config.yaml:/app/config.yaml:ro
+    
+    restart: unless-stopped
+    
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    
+    networks:
+      - person-reid-network
+
+networks:
+  person-reid-network:
+    driver: bridge

@@ -1,0 +1,22 @@
+# Python dependencies for Person ReID UI
+# Standalone module - no backend dependencies
+
+# UI Framework
+streamlit>=1.28.0
+
+# Data visualization
+plotly>=5.17.0
+pandas>=2.0.0
+
+# HTTP Client
+requests>=2.31.0
+
+# Configuration
+pyyaml>=6.0.1
+python-dotenv>=1.0.0
+
+# Logging
+loguru>=0.7.0
+
+# Type hints
+typing-extensions>=4.8.0

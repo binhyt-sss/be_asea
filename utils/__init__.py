@@ -1,8 +1,8 @@
 """
 Utility modules for backend services
 """
-from .kafka_manager import KafkaManager
+from .kafka_manager import KafkaAlertProducer, KafkaAlertConsumer
 
-__all__ = ['KafkaManager']
+__all__ = ['KafkaAlertProducer', 'KafkaAlertConsumer']
 
 
