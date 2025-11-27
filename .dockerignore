@@ -1,0 +1,68 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Git
+.git/
+.gitignore
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Logs
+*.log
+logs/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+deployment/kafka/kafka_data/
+deployment/posgrest/postgres_data/
+deployment/qdrant/data/
+
+# Docker
+docker-compose.yml
+Dockerfile
+.dockerignore
+
+# Documentation
+*.md
+README*
+MIGRATION.md
+QUICKSTART.md
+STRUCTURE.md
+
+# Frontend
+person_reid_ui/
+
+# Alembic versions (optional - comment out if you need migrations in container)
+# alembic/versions/
+
+# Environment files (copy manually with secrets)
+.env
+.env.*
+
+# Deployment files
+deployment/
