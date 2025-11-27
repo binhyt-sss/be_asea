@@ -49,7 +49,7 @@ services:
     restart: unless-stopped
     volumes:
       - ./logs:/app/logs
-  networks:
+    networks:
       - person-reid-network
 
 
