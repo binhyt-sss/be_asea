@@ -79,6 +79,7 @@ async def startup_event():
 @app.on_event("shutdown")
 async def shutdown_event():
     logger.info("Shutting down Unified Backend Service...")
+    await redis_cache.close()
     await close_db()
     if kafka_consumer:
         kafka_consumer.close()
@@ -99,7 +100,7 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    redis_stats = redis_cache.get_stats() if redis_cache.is_available() else {"enabled": False}
+    redis_stats = await redis_cache.get_stats() if redis_cache.is_available() else {"enabled": False}
     return {
         "status": "healthy",
         "service": "unified_backend",
@@ -140,7 +141,7 @@ async def create_user(user_data: schemas.UserCreate, db: AsyncSession = Depends(
         raise HTTPException(status_code=400, detail=f"User with global_id {user_data.global_id} already exists")
     
     user = await user_crud.create_user(db, user_data)
-    redis_cache.invalidate_users_dict()
+    await redis_cache.invalidate_users_dict()
     return user
 
 
@@ -150,7 +151,7 @@ async def update_user(user_id: int, user_data: schemas.UserUpdate, db: AsyncSess
     user = await user_crud.update_user(db, user_id, user_data)
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
-    redis_cache.invalidate_users_dict()
+    await redis_cache.invalidate_users_dict()
     return user
 
 
@@ -160,20 +161,20 @@ async def delete_user(user_id: int, db: AsyncSession = Depends(get_db)):
     success = await user_crud.delete_user(db, user_id)
     if not success:
         raise HTTPException(status_code=404, detail="User not found")
-    redis_cache.invalidate_users_dict()
+    await redis_cache.invalidate_users_dict()
     return JSONResponse(content={"message": f"User {user_id} deleted successfully"})
 
 
 @app.get("/users-dict")
 async def get_users_dict(use_cache: bool = True, db: AsyncSession = Depends(get_db)):
     if use_cache and redis_cache.is_available():
-        cached_dict = redis_cache.get_users_dict()
+        cached_dict = await redis_cache.get_users_dict()
         if cached_dict:
             return cached_dict
     
     users_dict = await user_crud.get_users_dict(db)
     if redis_cache.is_available():
-        redis_cache.cache_users_dict(users_dict, ttl=3600)
+        await redis_cache.cache_users_dict(users_dict, ttl=3600)
     return users_dict
 
 
@@ -263,12 +264,12 @@ async def get_recent_messages(limit: int = 50):
 
 @app.get("/cache/stats")
 async def get_cache_stats():
-    return redis_cache.get_stats()
+    return await redis_cache.get_stats()
 
 
 @app.post("/cache/invalidate/users-dict")
 async def invalidate_users_cache():
-    success = redis_cache.invalidate_users_dict()
+    success = await redis_cache.invalidate_users_dict()
     return {"message": "Users dict cache invalidated" if success else "Redis not available"}
 
 

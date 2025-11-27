@@ -14,8 +14,8 @@ alembic>=1.12.0
 # Kafka
 confluent-kafka>=2.3.0
 
-# Redis Cache
-redis>=4.5.0
+# Redis Cache - ASYNC support
+redis[asyncio]>=5.0.0
 
 # Utilities
 loguru>=0.6.0

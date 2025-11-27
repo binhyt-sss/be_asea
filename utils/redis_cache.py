@@ -1,9 +1,9 @@
 """
-Redis Cache Manager for Backend API
-Provides caching layer for database queries and session management
+Redis Cache Manager for Backend API (ASYNC VERSION)
+Provides non-blocking caching layer for database queries and session management
 """
 
-import redis
+import redis.asyncio as redis
 import json
 from typing import Dict, Optional, Any
 from loguru import logger
@@ -19,13 +19,15 @@ except ImportError:
 
 class RedisCache:
     """
-    Redis cache manager for backend services
+    Async Redis cache manager for backend services
 
     Features:
     - Users dictionary caching (global_id -> name mapping)
     - Session data storage
     - Temporary data with TTL
     - Query result caching
+    
+    ⚡ Fully async to avoid blocking event loop
     """
 
     def __init__(
@@ -37,7 +39,7 @@ class RedisCache:
         enabled: bool = True
     ):
         """
-        Initialize Redis Cache Manager
+        Initialize Async Redis Cache Manager
 
         Args:
             redis_config: Optional RedisSettings from config module (preferred)
@@ -75,33 +77,40 @@ class RedisCache:
             self.port = int(port or os.getenv('REDIS_PORT', 6379))
             self.db = int(db or os.getenv('REDIS_DB', 0))
 
-        try:
-            self.redis = redis.Redis(
-                host=self.host,
-                port=self.port,
-                db=self.db,
-                decode_responses=True,
-                socket_connect_timeout=5,
-                socket_keepalive=True
-            )
-            # Test connection
-            self.redis.ping()
-            logger.info(f"✅ Redis cache connected: {self.host}:{self.port} (DB={self.db})")
-        except redis.ConnectionError as e:
-            logger.error(f"❌ Redis connection failed: {e}")
-            logger.warning("⚠️  Running without Redis cache")
-            self.enabled = False
-            self.redis = None
+        self.redis: Optional[redis.Redis] = None
+        self._connection_tested = False
+
+    async def _ensure_connection(self):
+        """Lazy connection initialization with async ping test"""
+        if self.redis is None and self.enabled:
+            try:
+                self.redis = redis.Redis(
+                    host=self.host,
+                    port=self.port,
+                    db=self.db,
+                    decode_responses=True,
+                    socket_connect_timeout=5,
+                    socket_keepalive=True
+                )
+                # Test connection asynchronously
+                await self.redis.ping()
+                logger.info(f"✅ Redis cache connected: {self.host}:{self.port} (DB={self.db})")
+                self._connection_tested = True
+            except (redis.ConnectionError, Exception) as e:
+                logger.error(f"❌ Redis connection failed: {e}")
+                logger.warning("⚠️  Running without Redis cache")
+                self.enabled = False
+                self.redis = None
 
     def is_available(self) -> bool:
-        """Check if Redis is available"""
+        """Check if Redis is available (synchronous check)"""
         return self.enabled and self.redis is not None
 
-    # ========== Users Dictionary Caching ==========
+    # ========== Users Dictionary Caching (ASYNC) ==========
 
-    def cache_users_dict(self, users_dict: Dict[int, str], ttl: int = 3600) -> bool:
+    async def cache_users_dict(self, users_dict: Dict[int, str], ttl: int = 3600) -> bool:
         """
-        Cache users dictionary (global_id -> name mapping)
+        Cache users dictionary (global_id -> name mapping) - ASYNC
 
         Args:
             users_dict: Dictionary mapping global_id to person name
@@ -110,6 +119,7 @@ class RedisCache:
         Returns:
             True if successful, False otherwise
         """
+        await self._ensure_connection()
         if not self.is_available():
             return False
 
@@ -117,27 +127,28 @@ class RedisCache:
             key = "users:dict"
             # Convert int keys to strings for Redis
             data_to_store = {str(k): v for k, v in users_dict.items()}
-            self.redis.hset(key, mapping=data_to_store)
-            self.redis.expire(key, ttl)
+            await self.redis.hset(key, mapping=data_to_store)
+            await self.redis.expire(key, ttl)
             logger.info(f"✅ Cached {len(users_dict)} users (TTL={ttl}s)")
             return True
         except Exception as e:
             logger.error(f"❌ Failed to cache users dict: {e}")
             return False
 
-    def get_users_dict(self) -> Optional[Dict[int, str]]:
+    async def get_users_dict(self) -> Optional[Dict[int, str]]:
         """
-        Get cached users dictionary
+        Get cached users dictionary - ASYNC
 
         Returns:
             Dictionary mapping global_id to person name, or None if not cached
         """
+        await self._ensure_connection()
         if not self.is_available():
             return None
 
         try:
             key = "users:dict"
-            data = self.redis.hgetall(key)
+            data = await self.redis.hgetall(key)
             if not data:
                 return None
             # Convert string keys back to int
@@ -146,24 +157,25 @@ class RedisCache:
             logger.error(f"❌ Failed to get users dict from cache: {e}")
             return None
 
-    def invalidate_users_dict(self) -> bool:
-        """Invalidate cached users dictionary"""
+    async def invalidate_users_dict(self) -> bool:
+        """Invalidate cached users dictionary - ASYNC"""
+        await self._ensure_connection()
         if not self.is_available():
             return False
 
         try:
-            self.redis.delete("users:dict")
+            await self.redis.delete("users:dict")
             logger.info("✅ Users dict cache invalidated")
             return True
         except Exception as e:
             logger.error(f"❌ Failed to invalidate users dict: {e}")
             return False
 
-    # ========== Generic Cache Operations ==========
+    # ========== Generic Cache Operations (ASYNC) ==========
 
-    def set(self, key: str, value: Any, ttl: int = 300) -> bool:
+    async def set(self, key: str, value: Any, ttl: int = 300) -> bool:
         """
-        Set a cache value with TTL
+        Set a cache value with TTL - ASYNC
 
         Args:
             key: Cache key
@@ -173,6 +185,7 @@ class RedisCache:
         Returns:
             True if successful
         """
+        await self._ensure_connection()
         if not self.is_available():
             return False
 
@@ -181,15 +194,15 @@ class RedisCache:
             if not isinstance(value, str):
                 value = json.dumps(value)
 
-            self.redis.setex(key, ttl, value)
+            await self.redis.setex(key, ttl, value)
             return True
         except Exception as e:
             logger.error(f"❌ Failed to set cache key '{key}': {e}")
             return False
 
-    def get(self, key: str, deserialize: bool = True) -> Optional[Any]:
+    async def get(self, key: str, deserialize: bool = True) -> Optional[Any]:
         """
-        Get a cache value
+        Get a cache value - ASYNC
 
         Args:
             key: Cache key
@@ -198,11 +211,12 @@ class RedisCache:
         Returns:
             Cached value or None if not found
         """
+        await self._ensure_connection()
         if not self.is_available():
             return None
 
         try:
-            value = self.redis.get(key)
+            value = await self.redis.get(key)
             if value is None:
                 return None
 
@@ -218,44 +232,47 @@ class RedisCache:
             logger.error(f"❌ Failed to get cache key '{key}': {e}")
             return None
 
-    def delete(self, key: str) -> bool:
-        """Delete a cache key"""
+    async def delete(self, key: str) -> bool:
+        """Delete a cache key - ASYNC"""
+        await self._ensure_connection()
         if not self.is_available():
             return False
 
         try:
-            self.redis.delete(key)
+            await self.redis.delete(key)
             return True
         except Exception as e:
             logger.error(f"❌ Failed to delete cache key '{key}': {e}")
             return False
 
-    def exists(self, key: str) -> bool:
-        """Check if a key exists in cache"""
+    async def exists(self, key: str) -> bool:
+        """Check if a key exists in cache - ASYNC"""
+        await self._ensure_connection()
         if not self.is_available():
             return False
 
         try:
-            return bool(self.redis.exists(key))
+            return bool(await self.redis.exists(key))
         except Exception as e:
             logger.error(f"❌ Failed to check cache key '{key}': {e}")
             return False
 
-    # ========== Statistics ==========
+    # ========== Statistics (ASYNC) ==========
 
-    def get_stats(self) -> Dict:
+    async def get_stats(self) -> Dict:
         """
-        Get Redis statistics
+        Get Redis statistics - ASYNC
 
         Returns:
             Dictionary with stats
         """
+        await self._ensure_connection()
         if not self.is_available():
             return {'enabled': False}
 
         try:
-            info = self.redis.info()
-            keys = self.redis.keys("*")
+            info = await self.redis.info()
+            keys = await self.redis.keys("*")
             return {
                 'enabled': True,
                 'host': self.host,
@@ -270,23 +287,30 @@ class RedisCache:
             logger.error(f"❌ Failed to get Redis stats: {e}")
             return {'enabled': True, 'error': str(e)}
 
-    def clear_all(self) -> bool:
+    async def clear_all(self) -> bool:
         """
-        Clear all keys (use with caution!)
+        Clear all keys (use with caution!) - ASYNC
 
         Returns:
             True if successful
         """
+        await self._ensure_connection()
         if not self.is_available():
             return False
 
         try:
-            keys = self.redis.keys("*")
+            keys = await self.redis.keys("*")
             if keys:
-                self.redis.delete(*keys)
+                await self.redis.delete(*keys)
             logger.info(f"✅ Cleared {len(keys)} keys from Redis")
             return True
         except Exception as e:
             logger.error(f"❌ Failed to clear Redis: {e}")
             return False
+    
+    async def close(self):
+        """Close Redis connection - ASYNC"""
+        if self.redis is not None:
+            await self.redis.close()
+            logger.info("✅ Redis connection closed")
 
