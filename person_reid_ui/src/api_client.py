@@ -230,10 +230,54 @@ class APIClient:
         return self._make_request('GET', '/stats/zones')
     
     # Kafka/Messages Endpoints
-    
+
     def get_recent_messages(self, limit: int = 50) -> Dict:
         """Get recent Kafka messages"""
         return self._make_request('GET', '/messages/recent', params={'limit': limit})
+
+    # Violation Endpoints
+
+    def get_violation_logs(self, skip: int = 0, limit: int = 50,
+                          user_id: Optional[str] = None,
+                          zone_id: Optional[str] = None,
+                          start_date: Optional[str] = None,
+                          end_date: Optional[str] = None) -> Dict:
+        """Get violation logs from database with filtering"""
+        params = {'skip': skip, 'limit': limit}
+        if user_id:
+            params['user_id'] = user_id
+        if zone_id:
+            params['zone_id'] = zone_id
+        if start_date:
+            params['start_date'] = start_date
+        if end_date:
+            params['end_date'] = end_date
+
+        return self._make_request('GET', '/violations/logs', params=params)
+
+    def get_violation_log(self, violation_id: int) -> Dict:
+        """Get specific violation log by ID"""
+        return self._make_request('GET', f'/violations/logs/{violation_id}')
+
+    def get_violation_summary(self) -> Dict:
+        """Get violation summary statistics"""
+        return self._make_request('GET', '/violations/logs/stats/summary')
+
+    def get_violations_queue(self) -> Dict:
+        """Get violations waiting for manual review"""
+        return self._make_request('GET', '/violations/queue')
+
+    def approve_violation(self, violation_id: str) -> Dict:
+        """Approve a violation"""
+        return self._make_request('POST', f'/violations/{violation_id}/approve')
+
+    def reject_violation(self, violation_id: str) -> Dict:
+        """Reject a violation"""
+        return self._make_request('POST', f'/violations/{violation_id}/reject')
+
+    def get_violation_statistics(self) -> Dict:
+        """Get violation processing statistics"""
+        return self._make_request('GET', '/violations/statistics')
 
 
 class APIError(Exception):
