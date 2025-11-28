@@ -1,21 +1,4 @@
 services:
-  ui:
-    build: 
-      context: .
-      dockerfile: person_reid_ui/Dockerfile
-    container_name: person-reid-ui
-    ports:
-      - "4501:8501"
-    env_file:
-      - .env
-    environment:
-      # Override API URL to point to backend container
-      PERSON_REID_API_URL: http://backend:8000
-    restart: unless-stopped
-    depends_on:
-      - backend
-    networks:
-      - person-reid-network
 
   backend:
     build:
