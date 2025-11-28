@@ -20,6 +20,7 @@ services:
       - person-reid-network
       - posgrest_default
       - redis_default
+      - kafka_default
     external_links:
       - person_reid_redis:person_reid_redis
 
@@ -30,4 +31,6 @@ networks:
   posgrest_default:
     external: true
   redis_default:
+    external: true
+  kafka_default:
     external: true
