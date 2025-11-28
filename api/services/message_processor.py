@@ -22,9 +22,9 @@ from loguru import logger
 from redis import asyncio as aioredis
 
 # Config
-from config.settings import Settings
+from config.settings import get_settings
 
-settings = Settings()
+settings = get_settings()
 
 
 class MessageProcessor:
