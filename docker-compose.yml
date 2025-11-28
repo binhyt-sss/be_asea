@@ -1,27 +1,11 @@
-services:
-  ui:
-    build: 
-      context: .
-      dockerfile: person_reid_ui/Dockerfile
-    container_name: person-reid-ui
-    ports:
-      - "4501:8501"
-    env_file:
-      - .env
-    environment:
-      # Override API URL to point to backend container
-      PERSON_REID_API_URL: http://backend:8000
-    restart: unless-stopped
-    depends_on:
-      - backend
-    networks:
-      - person-reid-network
+version: '3.8'
 
+services:
   backend:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: person-reid-backend
+    container_name: person_reid_backend
     ports:
       - "4001:8000"
     env_file:
@@ -32,11 +16,15 @@ services:
     networks:
       - person-reid-network
       - posgrest_default  # Connect to existing postgres network
+      - redis_default     # Connect to existing Redis network
     external_links:
       - posgrest-postgres_db-1:postgres_db
+      - person_reid_redis:redis  # Link to existing Redis container
 
 networks:
   person-reid-network:
     driver: bridge
   posgrest_default:
     external: true  # Use existing postgres network
+  redis_default:
+    external: true  # Use existing Redis network
