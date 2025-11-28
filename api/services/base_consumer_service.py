@@ -121,15 +121,25 @@ class BaseConsumerService(ABC):
         Common message handling logic (used by all implementations)
 
         This method:
-        1. Adds message to buffer
-        2. Broadcasts to WebSocket clients (if callback provided)
-        3. Tracks message count
-        4. Logs periodically
+        1. Process custom business logic
+        2. Adds message to buffer
+        3. Broadcasts to WebSocket clients (if callback provided)
+        4. Tracks message count
+        5. Logs periodically
 
         Args:
             message: Message dict to handle
         """
         try:
+            # ========================================================
+            # CUSTOM BUSINESS LOGIC - THÊM LOGIC CỦA BẠN VÀO ĐÂY
+            # ========================================================
+            processed_message = self._process_business_logic(message)
+
+            # Use processed message instead of original
+            message = processed_message
+            # ========================================================
+
             # Add to buffer
             self.message_buffer.append(message)
             self._message_count += 1
@@ -147,3 +157,24 @@ class BaseConsumerService(ABC):
 
         except Exception as e:
             logger.error(f"Error handling message: {e}")
+
+    def _process_business_logic(self, message: Dict[Any, Any]) -> Dict[Any, Any]:
+        """
+        Process custom business logic for all messages
+
+        This method uses MessageProcessor for hybrid approach:
+        - Auto-process: validation, enrichment, simple alerts
+        - Manual queue: violations for review via endpoints
+
+        Args:
+            message: Original message from consumer
+
+        Returns:
+            Processed message (can be modified or enriched)
+        """
+        # Use MessageProcessor for hybrid approach
+        from api.services.message_processor import MessageProcessor
+
+        processed_message = MessageProcessor.process(message)
+
+        return processed_message

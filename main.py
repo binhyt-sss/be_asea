@@ -23,6 +23,7 @@ from api.routers import (
     kafka_router
 )
 from api.routers.kafka import broadcast_message
+from api.routers.violations import router as violations_router
 
 # Services
 from api.services import KafkaService  # Legacy - kept for backward compatibility
@@ -92,6 +93,7 @@ app.include_router(users_router)
 app.include_router(zones_router)
 app.include_router(stats_router)
 app.include_router(kafka_router)
+app.include_router(violations_router)
 
 
 @app.get("/")
@@ -100,10 +102,11 @@ async def root():
     return {
         "service": "Person ReID Unified Backend",
         "version": "2.0.0",
-        "architecture": "Async SQLAlchemy + Kafka",
+        "architecture": "Async SQLAlchemy + Generic Consumer",
         "endpoints": {
             "database": "/users, /zones, /stats",
-            "kafka": "/ws/alerts, /messages/recent",
+            "messages": "/ws/alerts, /messages/recent",
+            "violations": "/violations/queue, /violations/{id}/approve, /violations/{id}/reject",
             "docs": "/docs"
         }
     }
@@ -149,17 +152,18 @@ if __name__ == "__main__":
     import uvicorn
     
     print("="*70)
-    print("🚀 Starting Unified Person ReID Backend")
+    print("Starting Unified Person ReID Backend")
     print("="*70)
-    print("\n📊 Unified API:  http://localhost:8000")
+    print("\nUnified API:  http://localhost:8000")
     print("   Swagger UI:   http://localhost:8000/docs")
     print("   ReDoc:        http://localhost:8000/redoc")
-    print("\n💡 Modular Architecture:")
-    print("   • Users:      /users (CRUD)")
-    print("   • Zones:      /zones (CRUD)")
-    print("   • Stats:      /stats (aggregates)")
-    print("   • Kafka:      /ws/alerts, /messages/recent")
-    print("   • Health:     /health")
+    print("\nModular Architecture:")
+    print("   - Users:      /users (CRUD)")
+    print("   - Zones:      /zones (CRUD)")
+    print("   - Stats:      /stats (aggregates)")
+    print("   - Messages:   /ws/alerts, /messages/recent")
+    print("   - Violations: /violations/* (manual review)")
+    print("   - Health:     /health")
     print("\n" + "="*70 + "\n")
     
     uvicorn.run(

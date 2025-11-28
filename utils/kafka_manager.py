@@ -341,8 +341,8 @@ class KafkaAlertConsumer:
                     message_dict = json.loads(message_json)
 
                     self.message_count += 1
-                    logger.debug(f"✓ Kafka message received: {message_dict.get('status')} - {message_dict.get('zone_name')}")
-
+                    #logger.debug(f"✓ Kafka message received: {message_dict.get('status')} - {message_dict.get('zone_name')}")
+                    logger.debug(f"✓ Kafka message received: {message_dict.get('status')} - {message_dict.get('zone_name')} - Message details: {message_dict}")
                     # Call callback
                     callback(message_dict)
 
