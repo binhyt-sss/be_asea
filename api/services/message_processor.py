@@ -58,14 +58,16 @@ class MessageProcessor:
         """Initialize Redis connection pool"""
         if cls._redis is None:
             try:
-                cls._redis = await aioredis.from_url(
-                    settings.business.redis_url,
+                cls._redis = aioredis.Redis(
+                    host=settings.business.redis_host,
+                    port=settings.business.redis_port,
+                    db=0,
                     decode_responses=True,
                     encoding="utf-8"
                 )
                 # Test connection
                 await cls._redis.ping()
-                logger.info(f"✅ Redis connected: {settings.business.redis_url}")
+                logger.info(f"✅ Redis connected: {settings.business.redis_host}:{settings.business.redis_port}/0")
             except Exception as e:
                 logger.error(f"❌ Failed to connect to Redis: {e}")
                 raise

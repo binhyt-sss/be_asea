@@ -117,9 +117,15 @@ class BusinessSettings(BaseModel):
         le=7200,
         description="Tracking TTL in Redis (seconds)"
     )
-    redis_url: str = Field(
-        default="redis://localhost:6379/0",
-        description="Redis connection URL"
+    redis_host: str = Field(
+        default="127.0.0.1",
+        description="Redis host address"
+    )
+    redis_port: int = Field(
+        default=6379,
+        ge=1,
+        le=65535,
+        description="Redis port"
     )
 
     @field_validator('tracking_ttl')
@@ -183,7 +189,8 @@ class Settings(BaseSettings):
     # Business logic configuration (NEW)
     default_violation_threshold: int = Field(default=10, alias="DEFAULT_VIOLATION_THRESHOLD")
     tracking_ttl: int = Field(default=60, alias="TRACKING_TTL")
-    redis_url: str = Field(default="redis://localhost:6379/0", alias="REDIS_URL")
+    redis_host: str = Field(default="127.0.0.1", alias="REDIS_HOST")
+    redis_port: int = Field(default=6379, alias="REDIS_PORT")
 
     # Consumer configuration (NEW)
     consumer_type: str = Field(default="kafka", alias="CONSUMER_TYPE")
@@ -244,7 +251,8 @@ class Settings(BaseSettings):
         return BusinessSettings(
             default_threshold=self.default_violation_threshold,
             tracking_ttl=self.tracking_ttl,
-            redis_url=self.redis_url
+            redis_host=self.redis_host,
+            redis_port=self.redis_port
         )
 
     @property
