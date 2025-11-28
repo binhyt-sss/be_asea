@@ -53,11 +53,15 @@ services:
     networks:
       - person-reid-network
       - posgrest_default  # Connect to existing postgres network
+      - redis_default     # Connect to existing Redis network
     external_links:
       - posgrest-postgres_db-1:postgres_db
+      - person_reid_redis:redis  # Link to existing Redis container
 
 networks:
   person-reid-network:
     driver: bridge
   posgrest_default:
     external: true  # Use existing postgres network
+  redis_default:
+    external: true  # Use existing Redis network
