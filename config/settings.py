@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Optional
 import warnings
+import json
 from loguru import logger
 
 
@@ -146,6 +147,23 @@ class Settings(BaseSettings):
 
     logging_level: str = Field(default="INFO", alias="LOGGING_LEVEL")
 
+    # Consumer configuration (NEW)
+    consumer_type: str = Field(default="kafka", alias="CONSUMER_TYPE")
+
+    # SSE config (NEW)
+    sse_enabled: bool = Field(default=False, alias="SSE_ENABLED")
+    sse_url: str = Field(default="http://localhost:8000/events/alerts", alias="SSE_URL")
+    sse_headers: str = Field(default="{}", alias="SSE_HEADERS")  # JSON string
+    sse_retry_delay: int = Field(default=5, alias="SSE_RETRY_DELAY")
+    sse_max_retries: int = Field(default=-1, alias="SSE_MAX_RETRIES")
+
+    # WebSocket upstream config (NEW)
+    websocket_enabled: bool = Field(default=False, alias="WEBSOCKET_ENABLED")
+    websocket_url: str = Field(default="ws://localhost:8000/ws/alerts", alias="WEBSOCKET_URL")
+    websocket_reconnect_delay: int = Field(default=5, alias="WEBSOCKET_RECONNECT_DELAY")
+    websocket_ping_interval: int = Field(default=20, alias="WEBSOCKET_PING_INTERVAL")
+    websocket_ping_timeout: int = Field(default=10, alias="WEBSOCKET_PING_TIMEOUT")
+
     @property
     def database(self) -> DatabaseSettings:
         """Build DatabaseSettings from flat env vars"""
@@ -181,6 +199,48 @@ class Settings(BaseSettings):
     def logging(self) -> LoggingSettings:
         """Build LoggingSettings from flat env vars"""
         return LoggingSettings(level=self.logging_level)
+
+    @property
+    def consumer(self):
+        """Build ConsumerSettings from flat env vars"""
+        from config.consumer_config import (
+            ConsumerSettings,
+            KafkaConsumerConfig,
+            SSEConsumerConfig,
+            WebSocketConsumerConfig
+        )
+
+        # Parse SSE headers from JSON string
+        sse_headers = {}
+        if self.sse_headers:
+            try:
+                sse_headers = json.loads(self.sse_headers)
+            except json.JSONDecodeError:
+                logger.warning("⚠️  Invalid SSE_HEADERS JSON, using empty dict")
+
+        return ConsumerSettings(
+            consumer_type=self.consumer_type,
+            kafka=KafkaConsumerConfig(
+                enabled=self.kafka_enabled,
+                bootstrap_servers=self.kafka_bootstrap_servers,
+                topic=self.kafka_topic,
+                group_id=self.kafka_group_id
+            ),
+            sse=SSEConsumerConfig(
+                enabled=self.sse_enabled,
+                url=self.sse_url,
+                headers=sse_headers,
+                retry_delay=self.sse_retry_delay,
+                max_retries=self.sse_max_retries
+            ),
+            websocket=WebSocketConsumerConfig(
+                enabled=self.websocket_enabled,
+                url=self.websocket_url,
+                reconnect_delay=self.websocket_reconnect_delay,
+                ping_interval=self.websocket_ping_interval,
+                ping_timeout=self.websocket_ping_timeout
+            )
+        )
 
     def model_post_init(self, __context) -> None:
         """Log configuration status after initialization"""

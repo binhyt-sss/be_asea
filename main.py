@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from loguru import logger
 
@@ -21,57 +22,69 @@ from api.routers import (
     stats_router,
     kafka_router
 )
+from api.routers.kafka import broadcast_message
 
 # Services
-from api.services import KafkaService
+from api.services import KafkaService  # Legacy - kept for backward compatibility
+from api.services.consumer_factory import ConsumerFactory
 from api.dependencies import get_message_buffer
-
-# Create unified app
-app = FastAPI(
-    title="Person ReID Backend - Unified API",
-    version="2.0.0",
-    description="Async SQLAlchemy + Kafka in modular architecture"
-)
 
 # Global service instances
 settings = get_settings()
-kafka_service: KafkaService = None
+kafka_service = None  # Will hold the consumer service (kept name for compatibility)
+consumer_service = None  # Alias for clarity
 
 
-@app.on_event("startup")
-async def startup_event():
-    """Initialize all services on startup"""
-    global kafka_service
-    
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Application lifespan manager (modern FastAPI pattern)
+    Replaces deprecated @app.on_event("startup"/"shutdown")
+    """
+    global kafka_service, consumer_service
+
+    # Startup
     logger.info("🚀 Starting Unified Backend Service...")
-    
+
     # Initialize database
     await init_db()
     logger.info("✅ Database initialized")
-    
-    # Start Kafka consumer in background
-    kafka_service = KafkaService(
-        kafka_config=settings.kafka,
-        message_buffer=get_message_buffer()
+
+    # Create consumer service using factory (NEW - supports multiple consumer types)
+    consumer_service = ConsumerFactory.create(
+        consumer_settings=settings.consumer,
+        message_buffer=get_message_buffer(),
+        broadcast_callback=broadcast_message  # Link to WebSocket broadcaster
     )
-    kafka_service.start()
-    
+    await consumer_service.start()
+
+    # Keep kafka_service reference for backward compatibility
+    kafka_service = consumer_service
+
     logger.info("✅ Unified Backend Service ready")
 
+    yield  # Application is running
 
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Gracefully shutdown all services"""
+    # Shutdown
     logger.info("Shutting down Unified Backend Service...")
+
+    # Stop consumer service
+    if consumer_service:
+        await consumer_service.stop()
 
     # Close database
     await close_db()
 
-    # Stop Kafka consumer
-    if kafka_service:
-        kafka_service.stop()
-
     logger.info("✅ Shutdown complete")
+
+
+# Create unified app with lifespan
+app = FastAPI(
+    title="Person ReID Backend - Unified API",
+    version="2.0.0",
+    description="Async SQLAlchemy + Kafka in modular architecture",
+    lifespan=lifespan
+)
 
 
 # Register routers
@@ -98,19 +111,36 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    """Health check with service status"""
+    """
+    Comprehensive health check endpoint
+
+    Returns:
+        Service health status and statistics
+    """
     message_buffer = get_message_buffer()
 
-    return {
+    health = {
         "status": "healthy",
         "service": "unified_backend",
         "version": "2.0.0",
         "database": "PostgreSQL + asyncpg",
         "orm": "SQLAlchemy 2.0 async",
-        "kafka_enabled": settings.kafka.enabled,
-        "kafka_running": kafka_service.is_running() if kafka_service else False,
-        "messages_received": len(message_buffer)
+        "consumer": {
+            "type": settings.consumer.consumer_type,
+            "running": consumer_service.is_running() if consumer_service else False,
+            "messages_received": consumer_service.get_message_count() if consumer_service else 0
+        },
+        "buffer": {
+            "size": len(message_buffer),
+            "max": message_buffer.maxlen
+        }
     }
+
+    # Add detailed consumer stats if running
+    if consumer_service and consumer_service.is_running():
+        health["consumer_stats"] = consumer_service.get_stats()
+
+    return health
 
 
 
