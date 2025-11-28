@@ -12,14 +12,20 @@ import streamlit as st
 # Load .env from root project directory
 try:
     from dotenv import load_dotenv
-    # Find .env in root project (parent of person_reid_ui)
-    root_dir = Path(__file__).parent.parent.parent
-    env_path = root_dir / ".env"
-    if env_path.exists():
-        load_dotenv(env_path)
-        print(f"✅ Loaded .env from: {env_path}")
+    # Try multiple paths for .env file
+    possible_paths = [
+        Path(__file__).parent.parent.parent / ".env",  # Development: ../../.env
+        Path("/app/.env"),  # Docker container: /app/.env
+        Path(".env"),  # Current directory
+    ]
+    
+    for env_path in possible_paths:
+        if env_path.exists():
+            load_dotenv(env_path)
+            print(f"✅ Loaded .env from: {env_path}")
+            break
     else:
-        print(f"⚠️  .env not found at: {env_path}")
+        print(f"⚠️  .env not found in any of: {[str(p) for p in possible_paths]}")
 except ImportError:
     print("⚠️  python-dotenv not installed, using system environment only")
 except Exception as e:
@@ -110,9 +116,16 @@ class Config:
     
     def _init_api_config(self) -> APIConfig:
         """Initialize API configuration"""
+        # Check for PERSON_REID_API_URL first (for Docker override)
+        person_reid_api_url = self._get_env('PERSON_REID_API_URL', None)
+        if person_reid_api_url:
+            base_url = person_reid_api_url
+        else:
+            # Fallback to API_HOST + API_PORT construction
+            base_url = self._get_env('API_HOST', "http://localhost") + ":" + str(self._get_env('API_PORT', 8000))
+        
         return APIConfig(
-            base_url=self._get_env('API_HOST', "http://localhost") + ":" +
-                     str(self._get_env('API_PORT', 8000)),
+            base_url=base_url,
             timeout=self._get_env('API_TIMEOUT', 30),
             retry_attempts=self._get_env('API_RETRY_ATTEMPTS', 3),
             retry_delay=self._get_env('API_RETRY_DELAY', 1)

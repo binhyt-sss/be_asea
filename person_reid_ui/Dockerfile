@@ -18,6 +18,9 @@ COPY person_reid_ui/requirements.txt .
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Copy .env file from root
+COPY .env .
+
 # Copy application code from person_reid_ui directory
 COPY person_reid_ui/ .
 
