@@ -11,6 +11,7 @@ __pycache__/
 
 # Environment
 .env
+
 .env.local
 
 # OS
@@ -22,6 +23,22 @@ Thumbs.db
 uv.lock
 deployment/*/data/
 deployment/
+uv
 
 # tools
 .claude/
+
+# testing
+test/
+*.test/
+test/*.test/
+tests/
+tests/*/*.test/
+__tests__/ 
+# Ignore any file or directory with 'test' in its name (common case variations)
+*test*
+*Test*
+*TEST*
+
+# kafka service
+run_kafka_service.py
