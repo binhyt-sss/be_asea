@@ -29,3 +29,6 @@ plotly>=6.0.0
 # HTTP Client
 aiohttp>=3.9.0
 requests>=2.31.0
+
+# Redis for real-time tracking
+redis>=5.0.0

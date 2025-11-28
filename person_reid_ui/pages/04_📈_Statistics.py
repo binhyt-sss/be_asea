@@ -73,11 +73,12 @@ def main():
         return
     
     # Tabs for different analytics
-    tab1, tab2, tab3, tab4 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5 = st.tabs([
         "📊 Overview", 
         "👥 User Analytics", 
         "🗺️ Zone Analytics",
-        "🚨 Alert Analytics"
+        "🚨 Alert Analytics",
+        "⚠️ Violations"
     ])
     
     with tab1:
@@ -91,6 +92,9 @@ def main():
     
     with tab4:
         alert_analytics_tab()
+    
+    with tab5:
+        violation_analytics_tab()
 
 
 def overview_tab():
@@ -617,6 +621,92 @@ def alert_analytics_tab():
         
     except Exception as e:
         st.error(f"Failed to load alert analytics: {e}")
+
+
+def violation_analytics_tab():
+    """Violation analytics from database"""
+    st.subheader("⚠️ Violation Analytics")
+    
+    try:
+        # Get violation summary
+        summary = api.get_violation_summary()
+        
+        # Key metrics
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            st.metric("Total Violations", summary.get('total_violations', 0))
+        
+        with col2:
+            avg_duration = summary.get('average_duration', 0)
+            st.metric("Avg Duration", f"{avg_duration:.1f}s")
+        
+        with col3:
+            top_users = summary.get('top_users', [])
+            st.metric("Most Active User", 
+                     top_users[0]['user_name'] if top_users else "N/A")
+        
+        with col4:
+            top_zones = summary.get('top_zones', [])
+            st.metric("Most Violated Zone", 
+                     top_zones[0]['zone_name'] if top_zones else "N/A")
+        
+        # Charts
+        st.markdown("---")
+        
+        if top_users:
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                # Top violating users chart
+                df_users = pd.DataFrame(top_users)
+                fig = px.bar(
+                    df_users, 
+                    x='violation_count', 
+                    y='user_name',
+                    orientation='h',
+                    title="Top Violating Users",
+                    labels={'violation_count': 'Violation Count', 'user_name': 'User'}
+                )
+                fig.update_layout(height=400)
+                st.plotly_chart(fig, use_container_width=True)
+            
+            with col2:
+                # Top zones chart
+                if top_zones:
+                    df_zones = pd.DataFrame(top_zones)
+                    fig = px.bar(
+                        df_zones, 
+                        x='violation_count', 
+                        y='zone_name',
+                        orientation='h',
+                        title="Most Violated Zones",
+                        labels={'violation_count': 'Violation Count', 'zone_name': 'Zone'}
+                    )
+                    fig.update_layout(height=400)
+                    st.plotly_chart(fig, use_container_width=True)
+        
+        # Recent violations
+        st.markdown("---")
+        st.subheader("Recent Violations")
+        
+        logs_response = api.get_violation_logs(limit=20)
+        recent_violations = logs_response.get('violations', [])
+        
+        if recent_violations:
+            df = pd.DataFrame(recent_violations)
+            
+            # Format for display
+            display_df = df[['user_name', 'zone_name', 'duration', 'threshold', 'start_time']].copy()
+            display_df['start_time'] = pd.to_datetime(display_df['start_time']).dt.strftime('%Y-%m-%d %H:%M')
+            display_df.columns = ['User', 'Zone', 'Duration (s)', 'Threshold (s)', 'Time']
+            
+            st.dataframe(display_df, use_container_width=True)
+        else:
+            st.info("No recent violations found")
+            
+    except Exception as e:
+        st.error(f"Failed to load violation analytics: {e}")
 
 
 if __name__ == "__main__":

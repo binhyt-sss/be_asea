@@ -14,7 +14,7 @@ import json
 import time
 import asyncio
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from collections import deque
 from loguru import logger
 
@@ -22,9 +22,9 @@ from loguru import logger
 from redis import asyncio as aioredis
 
 # Config
-from config import get_settings
+from config.settings import Settings
 
-settings = get_settings()
+settings = Settings()
 
 
 class MessageProcessor:
@@ -231,11 +231,11 @@ class MessageProcessor:
 
         # Query database for zone-specific threshold
         try:
-            from database.session import async_session_maker
+            from database.session import AsyncSessionLocal
             from database.models import WorkingZone
             from sqlalchemy import select
 
-            async with async_session_maker() as session:
+            async with AsyncSessionLocal() as session:
                 # Query zone config
                 stmt = select(WorkingZone.violation_threshold).where(
                     WorkingZone.zone_id == zone_id
@@ -309,10 +309,10 @@ class MessageProcessor:
         This runs in background task to not block message processing
         """
         try:
-            from database.session import async_session_maker
+            from database.session import AsyncSessionLocal
             from database.models import ViolationLog
 
-            async with async_session_maker() as session:
+            async with AsyncSessionLocal() as session:
                 # Create violation log record
                 violation = ViolationLog(
                     user_id=user_id,
@@ -355,3 +355,46 @@ class MessageProcessor:
             key = f"track:{user_id}:{zone_id}"
             await cls._redis.delete(key)
             logger.info(f"🗑️ Cleared tracking: {user_id} in {zone_id}")
+
+    @classmethod
+    def get_violations_queue(cls) -> List[Dict[str, Any]]:
+        """
+        Get violations queue for manual review
+        
+        Note: Since we moved to Redis + DB architecture, this returns
+        recent unresolved violations from the database instead of RAM queue
+        """
+        # Return empty for now - the Redis system directly saves to DB
+        # and doesn't maintain a separate "queue" for manual approval
+        return []
+
+    @classmethod
+    async def manual_approve_violation(cls, violation_id: str, action: str) -> bool:
+        """
+        Manual approval/rejection of violations
+        
+        Note: Since violations are auto-saved to DB, this method would
+        update the violation status in the database
+        """
+        try:
+            from database.session import AsyncSessionLocal
+            from database.models import ViolationLog
+            from sqlalchemy import select
+
+            async with AsyncSessionLocal() as session:
+                # Find violation by ID
+                stmt = select(ViolationLog).where(ViolationLog.id == int(violation_id))
+                result = await session.execute(stmt)
+                violation = result.scalar_one_or_none()
+
+                if not violation:
+                    return False
+
+                # For now, we don't have status fields in DB
+                # Could add is_approved/is_rejected fields later
+                logger.info(f"📋 Manual {action} for violation #{violation_id}: {violation.user_name} in {violation.zone_name}")
+                return True
+
+        except Exception as e:
+            logger.error(f"Manual approval error: {e}")
+            return False

@@ -88,8 +88,9 @@ def view_users_tab():
                     if zones:
                         st.markdown("**Assigned Zones:**")
                         for zone in zones:
+                            threshold = zone.get('violation_threshold', 10)
                             st.markdown(
-                                f'<span class="zone-badge">🗺️ {zone["zone_name"]} ({zone["zone_id"]})</span>',
+                                f'<span class="zone-badge">🗺️ {zone["zone_name"]} ({zone["zone_id"]}) - ⏱️ {threshold}s threshold</span>',
                                 unsafe_allow_html=True
                             )
                     else:

@@ -108,6 +108,10 @@ app.include_router(stats_router)
 app.include_router(kafka_router)
 app.include_router(violations_router)
 
+# Test router (for development/testing)
+from api.routers.test import router as test_router
+app.include_router(test_router)
+
 
 @app.get("/")
 async def root():

@@ -185,11 +185,13 @@ class APIClient:
     
     def create_zone(self, zone_id: str, zone_name: str,
                    x1: float, y1: float, x2: float, y2: float,
-                   x3: float, y3: float, x4: float, y4: float) -> Dict:
+                   x3: float, y3: float, x4: float, y4: float,
+                   violation_threshold: int = 10) -> Dict:
         """Create new zone"""
         data = {
             'zone_id': zone_id,
             'zone_name': zone_name,
+            'violation_threshold': violation_threshold,
             'x1': x1, 'y1': y1,
             'x2': x2, 'y2': y2,
             'x3': x3, 'y3': y3,
@@ -201,11 +203,14 @@ class APIClient:
                    x1: Optional[float] = None, y1: Optional[float] = None,
                    x2: Optional[float] = None, y2: Optional[float] = None,
                    x3: Optional[float] = None, y3: Optional[float] = None,
-                   x4: Optional[float] = None, y4: Optional[float] = None) -> Dict:
+                   x4: Optional[float] = None, y4: Optional[float] = None,
+                   violation_threshold: Optional[int] = None) -> Dict:
         """Update zone"""
         data = {}
         if zone_name is not None:
             data['zone_name'] = zone_name
+        if violation_threshold is not None:
+            data['violation_threshold'] = violation_threshold
         
         coords = {
             'x1': x1, 'y1': y1, 'x2': x2, 'y2': y2,
@@ -233,7 +238,7 @@ class APIClient:
 
     def get_recent_messages(self, limit: int = 50) -> Dict:
         """Get recent Kafka messages"""
-        return self._make_request('GET', '/messages/recent', params={'limit': limit})
+        return self._make_request('GET', '/kafka/messages/recent', params={'limit': limit})
 
     # Violation Endpoints
 

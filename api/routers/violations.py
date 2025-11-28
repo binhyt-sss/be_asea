@@ -11,7 +11,7 @@ from loguru import logger
 from sqlalchemy import select, desc, func
 
 from api.services.message_processor import MessageProcessor
-from database.session import async_session_maker
+from database.session import AsyncSessionLocal
 from database.models import ViolationLog
 
 
@@ -276,7 +276,7 @@ async def get_violation_logs(
     Supports pagination and filtering by user, zone, and date range.
     """
     try:
-        async with async_session_maker() as session:
+        async with AsyncSessionLocal() as session:
             # Base query
             stmt = select(ViolationLog)
 
@@ -351,7 +351,7 @@ async def get_violation_log(violation_id: int):
         Detailed violation information
     """
     try:
-        async with async_session_maker() as session:
+        async with AsyncSessionLocal() as session:
             stmt = select(ViolationLog).where(ViolationLog.id == violation_id)
             result = await session.execute(stmt)
             violation = result.scalar_one_or_none()
@@ -399,7 +399,7 @@ async def get_violation_summary():
         - Recent trends
     """
     try:
-        async with async_session_maker() as session:
+        async with AsyncSessionLocal() as session:
             # Total violations
             total_stmt = select(func.count(ViolationLog.id))
             total_result = await session.execute(total_stmt)

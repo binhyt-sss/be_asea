@@ -3,6 +3,8 @@ Pydantic Schemas for API Request/Response DTOs
 These are separate from SQLAlchemy models for clean separation of concerns
 """
 
+from __future__ import annotations
+
 from typing import Optional, List
 from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime
@@ -49,6 +51,7 @@ class WorkingZoneBase(BaseModel):
     """Base zone fields shared across schemas"""
     zone_id: str = Field(..., description="Unique zone identifier")
     zone_name: str = Field(..., min_length=1, max_length=100, description="Zone name")
+    violation_threshold: int = Field(default=10, ge=1, le=3600, description="Violation threshold in seconds")
     x1: float = Field(..., description="Polygon point 1 - X coordinate")
     y1: float = Field(..., description="Polygon point 1 - Y coordinate")
     x2: float = Field(..., description="Polygon point 2 - X coordinate")
@@ -67,6 +70,7 @@ class WorkingZoneCreate(WorkingZoneBase):
 class WorkingZoneUpdate(BaseModel):
     """Schema for updating zone fields (all optional)"""
     zone_name: Optional[str] = Field(None, min_length=1, max_length=100)
+    violation_threshold: Optional[int] = Field(None, ge=1, le=3600, description="Violation threshold in seconds")
     x1: Optional[float] = None
     y1: Optional[float] = None
     x2: Optional[float] = None

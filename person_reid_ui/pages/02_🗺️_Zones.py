@@ -116,6 +116,8 @@ def view_zones_tab():
                 with col1:
                     st.markdown(f"**Zone Name:** {zone['zone_name']}")
                     st.markdown(f"**Zone ID:** {zone['zone_id']}")
+                    threshold = zone.get('violation_threshold', 10)
+                    st.markdown(f"**Violation Threshold:** ⏱️ {threshold}s")
                     st.markdown(f"**Created:** {zone['created_at'][:19]}")
                     
                     # Display coordinates
@@ -175,6 +177,13 @@ def edit_zone_form(zone: dict):
     """Form to edit zone details"""
     with st.form(key=f"edit_form_{zone['zone_id']}"):
         new_name = st.text_input("Zone Name", value=zone['zone_name'])
+        threshold = st.number_input(
+            "Violation Threshold (seconds)", 
+            value=zone.get('violation_threshold', 10), 
+            min_value=1, 
+            max_value=300,
+            help="Time limit before triggering a violation alert"
+        )
         
         st.markdown("**Polygon Coordinates:**")
         col1, col2 = st.columns(2)
@@ -202,6 +211,7 @@ def edit_zone_form(zone: dict):
                 api.update_zone(
                     zone['zone_id'],
                     zone_name=new_name,
+                    violation_threshold=threshold,
                     x1=x1, y1=y1, x2=x2, y2=y2,
                     x3=x3, y3=y3, x4=x4, y4=y4
                 )
@@ -228,6 +238,13 @@ def create_zone_tab():
         with col1:
             zone_id = st.text_input("Zone ID", help="Unique identifier (e.g., ZONE_001)")
             zone_name = st.text_input("Zone Name", help="Descriptive name (e.g., Warehouse A)")
+            threshold = st.number_input(
+                "Violation Threshold (seconds)", 
+                value=10, 
+                min_value=1, 
+                max_value=300,
+                help="Time limit before triggering a violation alert"
+            )
         
         with col2:
             st.markdown("**Quick Templates:**")
@@ -271,6 +288,7 @@ def create_zone_tab():
                     new_zone = api.create_zone(
                         zone_id=zone_id,
                         zone_name=zone_name,
+                        violation_threshold=threshold,
                         x1=x1, y1=y1, x2=x2, y2=y2,
                         x3=x3, y3=y3, x4=x4, y4=y4
                     )

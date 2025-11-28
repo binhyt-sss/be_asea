@@ -83,6 +83,7 @@ async def create_zone(db: AsyncSession, zone_in: schemas.WorkingZoneCreate) -> W
     db_zone = WorkingZone(
         zone_id=zone_in.zone_id,
         zone_name=zone_in.zone_name,
+        violation_threshold=zone_in.violation_threshold,
         x1=zone_in.x1,
         y1=zone_in.y1,
         x2=zone_in.x2,
