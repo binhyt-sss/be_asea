@@ -29,7 +29,7 @@ except Exception as e:
 @dataclass
 class APIConfig:
     """API configuration"""
-    base_url: str = "http://localhost:8000"
+    base_url: str = ""
     timeout: int = 30
     retry_attempts: int = 3
     retry_delay: int = 1
@@ -112,7 +112,7 @@ class Config:
         """Initialize API configuration"""
         return APIConfig(
             base_url=self._get_env('API_HOST', "http://localhost") + ":" +
-                     str(self._get_env('API_PORT', 8000)),
+                     str(self._get_env('API_PORT', 4001)),
             timeout=self._get_env('API_TIMEOUT', 30),
             retry_attempts=self._get_env('API_RETRY_ATTEMPTS', 3),
             retry_delay=self._get_env('API_RETRY_DELAY', 1)
