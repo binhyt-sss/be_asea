@@ -111,56 +111,56 @@ class Config:
     def _init_api_config(self) -> APIConfig:
         """Initialize API configuration"""
         return APIConfig(
-            base_url=self._get_env('API_HOST', "http://localhost") + ":" +
-                     str(self._get_env('API_PORT', 4001)),
-            timeout=self._get_env('API_TIMEOUT', 30),
-            retry_attempts=self._get_env('API_RETRY_ATTEMPTS', 3),
-            retry_delay=self._get_env('API_RETRY_DELAY', 1)
+            base_url=os.getenv('API_HOST', "http://localhost") + ":" +
+                     str(os.getenv('API_PORT', 4001)),
+            timeout=os.getenv('API_TIMEOUT', 30),
+            retry_attempts=os.getenv('API_RETRY_ATTEMPTS', 3),
+            retry_delay=os.getenv('API_RETRY_DELAY', 1)
         )
     
     def _init_ui_config(self) -> UIConfig:
         """Initialize UI configuration"""
         return UIConfig(
-            title=self._get_env('UI_TITLE', "Person ReID System"),
-            page_icon=self._get_env('UI_PAGE_ICON', "👤"),
-            layout=self._get_env('UI_LAYOUT', "wide"),
-            port=self._get_env('UI_PORT', 8501),
-            theme=self._get_env('UI_THEME', "light")
+            title=os.getenv('UI_TITLE', "Person ReID System"),
+            page_icon=os.getenv('UI_PAGE_ICON', "👤"),
+            layout=os.getenv('UI_LAYOUT', "wide"),
+            port=os.getenv('UI_PORT', 8501),
+            theme=os.getenv('UI_THEME', "light")
         )
 
     def _init_features_config(self) -> FeaturesConfig:
         """Initialize features configuration"""
         return FeaturesConfig(
-            auto_refresh=self._get_env('UI_AUTO_REFRESH', True),
-            auto_refresh_interval=self._get_env('UI_REFRESH_INTERVAL', 5),
-            enable_charts=self._get_env('UI_ENABLE_CHARTS', True),
-            enable_export=self._get_env('UI_ENABLE_EXPORT', True),
-            debug_mode=self._get_env('DEBUG_MODE', False)
+            auto_refresh=os.getenv('UI_AUTO_REFRESH', True),
+            auto_refresh_interval=os.getenv('UI_AUTO_REFRESH_INTERVAL', 5),
+            enable_charts=os.getenv('UI_ENABLE_CHARTS', True),
+            enable_export=os.getenv('UI_ENABLE_EXPORT', True),
+            debug_mode=os.getenv('DEBUG_MODE', False)
         )
 
     def _init_display_config(self) -> DisplayConfig:
         """Initialize display configuration"""
         return DisplayConfig(
-            max_users_per_page=self._get_env('UI_MAX_USERS_PER_PAGE', 100),
-            max_zones_per_page=self._get_env('UI_MAX_ZONES_PER_PAGE', 100),
-            max_messages=self._get_env('UI_MAX_MESSAGES', 500),
-            date_format=self._get_env('UI_DATE_FORMAT', "%Y-%m-%d %H:%M:%S")
+            max_users_per_page=os.getenv('UI_MAX_USERS_PER_PAGE', 100),
+            max_zones_per_page=os.getenv('UI_MAX_ZONES_PER_PAGE', 100),
+            max_messages=os.getenv('UI_MAX_MESSAGES', 500),
+            date_format=os.getenv('UI_DATE_FORMAT', "%Y-%m-%d %H:%M:%S")
         )
 
     def _init_charts_config(self) -> ChartsConfig:
         """Initialize charts configuration"""
         return ChartsConfig(
-            color_scheme=self._get_env('UI_CHART_COLOR_SCHEME', "plotly"),
-            default_height=self._get_env('UI_CHART_HEIGHT', 500),
-            animation=self._get_env('UI_CHART_ANIMATION', True)
+            color_scheme=os.getenv('UI_CHART_COLOR_SCHEME', "plotly"),
+            default_height=os.getenv('UI_CHART_HEIGHT', 500),
+            animation=os.getenv('UI_CHART_ANIMATION', True)
         )
 
     def _init_alerts_config(self) -> AlertsConfig:
         """Initialize alerts configuration"""
         return AlertsConfig(
-            show_notifications=self._get_env('UI_SHOW_NOTIFICATIONS', True),
-            sound_enabled=self._get_env('UI_SOUND_ENABLED', False),
-            desktop_notifications=self._get_env('UI_DESKTOP_NOTIFICATIONS', False)
+            show_notifications=os.getenv('UI_SHOW_NOTIFICATIONS', True),
+            sound_enabled=os.getenv('UI_SOUND_ENABLED', False),
+            desktop_notifications=os.getenv('UI_DESKTOP_NOTIFICATIONS', False)
         )
     
     def to_dict(self) -> Dict[str, Any]:
