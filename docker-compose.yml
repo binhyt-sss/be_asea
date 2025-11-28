@@ -1,7 +1,6 @@
 version: '3.8'
 
-services:
-  backend:
+backend:
     build:
       context: .
       dockerfile: Dockerfile
@@ -27,4 +26,4 @@ networks:
   posgrest_default:
     external: true  # Use existing postgres network
   redis_default:
-    external: true  # Use existing Redis network
+    external: true  #
