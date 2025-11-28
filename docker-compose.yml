@@ -19,10 +19,15 @@ services:
     networks:
       - person-reid-network
       - posgrest_default
+      - redis_default
+    external_links:
+      - person_reid_redis:person_reid_redis
 
 networks:
   person-reid-network:
     external: true
     name: person_reid_network
   posgrest_default:
+    external: true
+  redis_default:
     external: true
