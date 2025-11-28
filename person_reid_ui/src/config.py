@@ -1,14 +1,29 @@
 """
 Configuration management for Person ReID UI
-Loads from config.yaml and environment variables
+Loads from root .env file and environment variables
 """
 
 import os
-import yaml
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 from dataclasses import dataclass
 import streamlit as st
+
+# Load .env from root project directory
+try:
+    from dotenv import load_dotenv
+    # Find .env in root project (parent of person_reid_ui)
+    root_dir = Path(__file__).parent.parent.parent
+    env_path = root_dir / ".env"
+    if env_path.exists():
+        load_dotenv(env_path)
+        print(f"✅ Loaded .env from: {env_path}")
+    else:
+        print(f"⚠️  .env not found at: {env_path}")
+except ImportError:
+    print("⚠️  python-dotenv not installed, using system environment only")
+except Exception as e:
+    print(f"⚠️  Error loading .env: {e}")
 
 
 @dataclass
@@ -66,18 +81,10 @@ class AlertsConfig:
 
 
 class Config:
-    """Main configuration class"""
-    
-    def __init__(self, config_file: Optional[str] = None):
-        """
-        Initialize configuration
-        
-        Args:
-            config_file: Path to config.yaml file
-        """
-        self.config_file = config_file or self._find_config_file()
-        self._config_data = self._load_config()
-        
+    """Main configuration class - reads from .env file"""
+
+    def __init__(self):
+        """Initialize configuration from environment variables"""
         # Initialize sub-configs
         self.api = self._init_api_config()
         self.ui = self._init_ui_config()
@@ -85,41 +92,9 @@ class Config:
         self.display = self._init_display_config()
         self.charts = self._init_charts_config()
         self.alerts = self._init_alerts_config()
-    
-    def _find_config_file(self) -> str:
-        """Find config.yaml in current or parent directories"""
-        current = Path(__file__).parent
-        
-        # Try current directory
-        config_path = current / "config.yaml"
-        if config_path.exists():
-            return str(config_path)
-        
-        # Try parent directory
-        config_path = current.parent / "config.yaml"
-        if config_path.exists():
-            return str(config_path)
-        
-        # Use default
-        return str(current / "config.yaml")
-    
-    def _load_config(self) -> Dict[str, Any]:
-        """Load configuration from YAML file"""
-        try:
-            with open(self.config_file, 'r', encoding='utf-8') as f:
-                return yaml.safe_load(f) or {}
-        except FileNotFoundError:
-            print(f"⚠️  Config file not found: {self.config_file}")
-            print("   Using default configuration")
-            return {}
-        except Exception as e:
-            print(f"⚠️  Error loading config: {e}")
-            print("   Using default configuration")
-            return {}
-    
-    def _get_env_or_config(self, env_var: str, config_path: list, default: Any) -> Any:
-        """Get value from environment variable or config file"""
-        # Try environment variable first
+
+    def _get_env(self, env_var: str, default: Any) -> Any:
+        """Get value from environment variable with type conversion"""
         env_value = os.getenv(env_var)
         if env_value is not None:
             # Convert to appropriate type
@@ -129,167 +104,63 @@ class Config:
                 try:
                     return int(env_value)
                 except ValueError:
-                    pass
+                    return default
             return env_value
-        
-        # Try config file
-        value = self._config_data
-        for key in config_path:
-            if isinstance(value, dict):
-                value = value.get(key)
-            else:
-                return default
-        
-        return value if value is not None else default
+        return default
     
     def _init_api_config(self) -> APIConfig:
         """Initialize API configuration"""
         return APIConfig(
-            base_url=self._get_env_or_config(
-                'PERSON_REID_API_URL',
-                ['api', 'base_url'],
-                "http://localhost:8000"
-            ),
-            timeout=self._get_env_or_config(
-                'PERSON_REID_API_TIMEOUT',
-                ['api', 'timeout'],
-                30
-            ),
-            retry_attempts=self._get_env_or_config(
-                'PERSON_REID_API_RETRY',
-                ['api', 'retry_attempts'],
-                3
-            ),
-            retry_delay=self._get_env_or_config(
-                'PERSON_REID_API_RETRY_DELAY',
-                ['api', 'retry_delay'],
-                1
-            )
+            base_url=self._get_env('API_HOST', "http://localhost") + ":" +
+                     str(self._get_env('API_PORT', 8000)),
+            timeout=self._get_env('API_TIMEOUT', 30),
+            retry_attempts=self._get_env('API_RETRY_ATTEMPTS', 3),
+            retry_delay=self._get_env('API_RETRY_DELAY', 1)
         )
     
     def _init_ui_config(self) -> UIConfig:
         """Initialize UI configuration"""
         return UIConfig(
-            title=self._get_env_or_config(
-                'PERSON_REID_UI_TITLE',
-                ['ui', 'title'],
-                "Person ReID System"
-            ),
-            page_icon=self._get_env_or_config(
-                'PERSON_REID_UI_ICON',
-                ['ui', 'page_icon'],
-                "👤"
-            ),
-            layout=self._get_env_or_config(
-                'PERSON_REID_UI_LAYOUT',
-                ['ui', 'layout'],
-                "wide"
-            ),
-            port=self._get_env_or_config(
-                'PERSON_REID_UI_PORT',
-                ['ui', 'port'],
-                8501
-            ),
-            theme=self._get_env_or_config(
-                'PERSON_REID_UI_THEME',
-                ['ui', 'theme'],
-                "light"
-            )
+            title=self._get_env('UI_TITLE', "Person ReID System"),
+            page_icon=self._get_env('UI_PAGE_ICON', "👤"),
+            layout=self._get_env('UI_LAYOUT', "wide"),
+            port=self._get_env('UI_PORT', 8501),
+            theme=self._get_env('UI_THEME', "light")
         )
-    
+
     def _init_features_config(self) -> FeaturesConfig:
         """Initialize features configuration"""
         return FeaturesConfig(
-            auto_refresh=self._get_env_or_config(
-                'PERSON_REID_AUTO_REFRESH',
-                ['features', 'auto_refresh'],
-                True
-            ),
-            auto_refresh_interval=self._get_env_or_config(
-                'PERSON_REID_REFRESH_INTERVAL',
-                ['features', 'auto_refresh_interval'],
-                5
-            ),
-            enable_charts=self._get_env_or_config(
-                'PERSON_REID_ENABLE_CHARTS',
-                ['features', 'enable_charts'],
-                True
-            ),
-            enable_export=self._get_env_or_config(
-                'PERSON_REID_ENABLE_EXPORT',
-                ['features', 'enable_export'],
-                True
-            ),
-            debug_mode=self._get_env_or_config(
-                'PERSON_REID_DEBUG',
-                ['features', 'debug_mode'],
-                False
-            )
+            auto_refresh=self._get_env('UI_AUTO_REFRESH', True),
+            auto_refresh_interval=self._get_env('UI_REFRESH_INTERVAL', 5),
+            enable_charts=self._get_env('UI_ENABLE_CHARTS', True),
+            enable_export=self._get_env('UI_ENABLE_EXPORT', True),
+            debug_mode=self._get_env('DEBUG_MODE', False)
         )
-    
+
     def _init_display_config(self) -> DisplayConfig:
         """Initialize display configuration"""
         return DisplayConfig(
-            max_users_per_page=self._get_env_or_config(
-                'PERSON_REID_MAX_USERS',
-                ['display', 'max_users_per_page'],
-                100
-            ),
-            max_zones_per_page=self._get_env_or_config(
-                'PERSON_REID_MAX_ZONES',
-                ['display', 'max_zones_per_page'],
-                100
-            ),
-            max_messages=self._get_env_or_config(
-                'PERSON_REID_MAX_MESSAGES',
-                ['display', 'max_messages'],
-                500
-            ),
-            date_format=self._get_env_or_config(
-                'PERSON_REID_DATE_FORMAT',
-                ['display', 'date_format'],
-                "%Y-%m-%d %H:%M:%S"
-            )
+            max_users_per_page=self._get_env('UI_MAX_USERS_PER_PAGE', 100),
+            max_zones_per_page=self._get_env('UI_MAX_ZONES_PER_PAGE', 100),
+            max_messages=self._get_env('UI_MAX_MESSAGES', 500),
+            date_format=self._get_env('UI_DATE_FORMAT', "%Y-%m-%d %H:%M:%S")
         )
-    
+
     def _init_charts_config(self) -> ChartsConfig:
         """Initialize charts configuration"""
         return ChartsConfig(
-            color_scheme=self._get_env_or_config(
-                'PERSON_REID_CHART_COLORS',
-                ['charts', 'color_scheme'],
-                "plotly"
-            ),
-            default_height=self._get_env_or_config(
-                'PERSON_REID_CHART_HEIGHT',
-                ['charts', 'default_height'],
-                500
-            ),
-            animation=self._get_env_or_config(
-                'PERSON_REID_CHART_ANIMATION',
-                ['charts', 'animation'],
-                True
-            )
+            color_scheme=self._get_env('UI_CHART_COLOR_SCHEME', "plotly"),
+            default_height=self._get_env('UI_CHART_HEIGHT', 500),
+            animation=self._get_env('UI_CHART_ANIMATION', True)
         )
-    
+
     def _init_alerts_config(self) -> AlertsConfig:
         """Initialize alerts configuration"""
         return AlertsConfig(
-            show_notifications=self._get_env_or_config(
-                'PERSON_REID_SHOW_NOTIFICATIONS',
-                ['alerts', 'show_notifications'],
-                True
-            ),
-            sound_enabled=self._get_env_or_config(
-                'PERSON_REID_SOUND',
-                ['alerts', 'sound_enabled'],
-                False
-            ),
-            desktop_notifications=self._get_env_or_config(
-                'PERSON_REID_DESKTOP_NOTIFY',
-                ['alerts', 'desktop_notifications'],
-                False
-            )
+            show_notifications=self._get_env('UI_SHOW_NOTIFICATIONS', True),
+            sound_enabled=self._get_env('UI_SOUND_ENABLED', False),
+            desktop_notifications=self._get_env('UI_DESKTOP_NOTIFICATIONS', False)
         )
     
     def to_dict(self) -> Dict[str, Any]:
@@ -339,9 +210,3 @@ class Config:
 def get_config() -> Config:
     """Get cached configuration instance"""
     return Config()
-
-
-# Convenience function for direct import
-def load_config(config_file: Optional[str] = None) -> Config:
-    """Load configuration"""
-    return Config(config_file)
