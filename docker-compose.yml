@@ -1,7 +1,6 @@
 version: '3.8'
 
 services:
-
   backend:
     build:
       context: .
@@ -12,20 +11,18 @@ services:
     env_file:
       - .env
     environment:
-      # Override Redis host to point to existing Redis container
       REDIS_HOST: person_reid_redis
+      POSTGRES_HOST: posgrest-postgres_db-1
     restart: unless-stopped
     volumes:
       - ./logs:/app/logs
     networks:
       - person-reid-network
-      - posgrest_default  # Connect to existing postgres network
-    external_links:
-      - posgrest-postgres_db-1:postgres_db
-      - person_reid_redis:redis  # Link to existing Redis container
+      - posgrest_default
 
 networks:
   person-reid-network:
-    driver: bridge
+    external: true
+    name: person_reid_network
   posgrest_default:
-    external: true  # Use existing postgres network
+    external: true
