@@ -50,6 +50,9 @@ class KafkaConsumerService(BaseConsumerService):
             self.consumer = KafkaAlertConsumer(kafka_config=self.config)
             logger.info(f"✅ Kafka consumer initialized: {self.config.bootstrap_servers}")
 
+            # Save event loop reference for thread-safe callbacks
+            self._event_loop = asyncio.get_running_loop()
+
             # Start background task
             self._running = True
             self._task = asyncio.create_task(self._consume_loop())

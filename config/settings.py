@@ -103,6 +103,39 @@ class LoggingSettings(BaseModel):
         return v
 
 
+class BusinessSettings(BaseModel):
+    """Business logic configuration for violation tracking"""
+    default_threshold: int = Field(
+        default=10,
+        ge=1,
+        le=3600,
+        description="Default violation threshold in seconds"
+    )
+    tracking_ttl: int = Field(
+        default=60,
+        ge=10,
+        le=7200,
+        description="Tracking TTL in Redis (seconds)"
+    )
+    redis_url: str = Field(
+        default="redis://localhost:6379/0",
+        description="Redis connection URL"
+    )
+
+    @field_validator('tracking_ttl')
+    @classmethod
+    def validate_ttl(cls, v: int, info) -> int:
+        """Ensure TTL is reasonable"""
+        # Access default_threshold from values if it exists
+        if hasattr(info, 'data') and 'default_threshold' in info.data:
+            threshold = info.data['default_threshold']
+            if v < threshold:
+                msg = f"⚠️  TRACKING_TTL ({v}s) should be >= DEFAULT_VIOLATION_THRESHOLD ({threshold}s)"
+                warnings.warn(msg, UserWarning, stacklevel=2)
+                logger.warning(msg)
+        return v
+
+
 class Settings(BaseSettings):
     """
     Application configuration loaded from .env file with validation.
@@ -146,6 +179,11 @@ class Settings(BaseSettings):
     api_kafka_api_port: int = Field(default=8004, alias="API_KAFKA_API_PORT")
 
     logging_level: str = Field(default="INFO", alias="LOGGING_LEVEL")
+
+    # Business logic configuration (NEW)
+    default_violation_threshold: int = Field(default=10, alias="DEFAULT_VIOLATION_THRESHOLD")
+    tracking_ttl: int = Field(default=60, alias="TRACKING_TTL")
+    redis_url: str = Field(default="redis://localhost:6379/0", alias="REDIS_URL")
 
     # Consumer configuration (NEW)
     consumer_type: str = Field(default="kafka", alias="CONSUMER_TYPE")
@@ -199,6 +237,15 @@ class Settings(BaseSettings):
     def logging(self) -> LoggingSettings:
         """Build LoggingSettings from flat env vars"""
         return LoggingSettings(level=self.logging_level)
+
+    @property
+    def business(self) -> BusinessSettings:
+        """Build BusinessSettings from flat env vars"""
+        return BusinessSettings(
+            default_threshold=self.default_violation_threshold,
+            tracking_ttl=self.tracking_ttl,
+            redis_url=self.redis_url
+        )
 
     @property
     def consumer(self):

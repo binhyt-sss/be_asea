@@ -71,10 +71,13 @@ class WorkingZone(Base):
 
     # Primary Key
     zone_id: Mapped[str] = mapped_column(String, primary_key=True)
-    
+
     # Zone Data
     zone_name: Mapped[str] = mapped_column(String, nullable=False)
-    
+
+    # Violation threshold in seconds (zone-specific config)
+    violation_threshold: Mapped[int] = mapped_column(Integer, default=10, nullable=False)
+
     # Polygon Coordinates (4 points: x1,y1 to x4,y4)
     x1: Mapped[float] = mapped_column(Float, nullable=False)
     y1: Mapped[float] = mapped_column(Float, nullable=False)
@@ -109,8 +112,46 @@ class WorkingZone(Base):
         return f"<WorkingZone(zone_id='{self.zone_id}', zone_name='{self.zone_name}', users_count={len(self.users)})>"
 
 
+class ViolationLog(Base):
+    """
+    Violation Log table - Track violation history
+    Records when users exceed violation threshold in zones
+    """
+    __tablename__ = "violation_logs"
+
+    # Primary Key
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
+
+    # Foreign Keys
+    user_id: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    zone_id: Mapped[str] = mapped_column(String, nullable=False, index=True)
+
+    # Violation Data
+    start_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    end_time: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    duration: Mapped[float] = mapped_column(Float, nullable=False)  # in seconds
+    threshold: Mapped[int] = mapped_column(Integer, nullable=False)  # threshold at time of violation
+
+    # Additional Context (optional)
+    user_name: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    zone_name: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False
+    )
+
+    def __repr__(self) -> str:
+        return f"<ViolationLog(id={self.id}, user_id='{self.user_id}', zone_id='{self.zone_id}', duration={self.duration}s)>"
+
+
 # Indexes for performance
 Index("idx_user_global_id", User.global_id)
+Index("idx_violation_user_id", ViolationLog.user_id)
+Index("idx_violation_zone_id", ViolationLog.zone_id)
+Index("idx_violation_start_time", ViolationLog.start_time)
 
 
 

@@ -51,6 +51,15 @@ async def lifespan(app: FastAPI):
     await init_db()
     logger.info("✅ Database initialized")
 
+    # Initialize Redis for MessageProcessor
+    from api.services.message_processor import MessageProcessor
+    try:
+        await MessageProcessor.init_redis()
+        logger.info("✅ Redis initialized for violation tracking")
+    except Exception as e:
+        logger.error(f"❌ Redis initialization failed: {e}")
+        logger.warning("⚠️ Continuing without Redis - violations won't be tracked")
+
     # Create consumer service using factory (NEW - supports multiple consumer types)
     consumer_service = ConsumerFactory.create(
         consumer_settings=settings.consumer,
@@ -72,6 +81,10 @@ async def lifespan(app: FastAPI):
     # Stop consumer service
     if consumer_service:
         await consumer_service.stop()
+
+    # Close Redis
+    from api.services.message_processor import MessageProcessor
+    await MessageProcessor.close_redis()
 
     # Close database
     await close_db()
@@ -120,6 +133,8 @@ async def health_check():
     Returns:
         Service health status and statistics
     """
+    from api.services.message_processor import MessageProcessor
+
     message_buffer = get_message_buffer()
 
     health = {
@@ -136,6 +151,10 @@ async def health_check():
         "buffer": {
             "size": len(message_buffer),
             "max": message_buffer.maxlen
+        },
+        "tracking": {
+            "redis_connected": MessageProcessor._redis is not None,
+            "stats": MessageProcessor.get_statistics()
         }
     }
 

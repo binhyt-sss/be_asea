@@ -49,6 +49,7 @@ class BaseConsumerService(ABC):
         self._task: Optional[asyncio.Task] = None
         self._running = False
         self._message_count = 0
+        self._event_loop: Optional[asyncio.AbstractEventLoop] = None
 
     @abstractmethod
     async def start(self):
@@ -145,11 +146,17 @@ class BaseConsumerService(ABC):
             self._message_count += 1
 
             # Broadcast to WebSocket clients if callback provided
-            if self.broadcast_callback:
+            if self.broadcast_callback and self._event_loop and not self._event_loop.is_closed():
                 try:
-                    self.broadcast_callback(message)
+                    # Fire-and-forget: Schedule coroutine without waiting for result
+                    # This is non-blocking and won't slow down message processing
+                    asyncio.run_coroutine_threadsafe(
+                        self.broadcast_callback(message),
+                        self._event_loop
+                    )
+                    # Note: We intentionally don't call .result() to avoid blocking
                 except Exception as e:
-                    logger.error(f"Error in broadcast callback: {e}")
+                    logger.error(f"Error scheduling broadcast: {e}")
 
             # Log periodically (every 100 messages)
             if self._message_count % 100 == 0:
@@ -162,9 +169,10 @@ class BaseConsumerService(ABC):
         """
         Process custom business logic for all messages
 
-        This method uses MessageProcessor for hybrid approach:
-        - Auto-process: validation, enrichment, simple alerts
-        - Manual queue: violations for review via endpoints
+        This method uses MessageProcessor for real-time violation tracking:
+        - Redis-based state tracking with TTL
+        - Automatic violation detection
+        - Alert de-bouncing (one alert per violation)
 
         Args:
             message: Original message from consumer
@@ -172,9 +180,16 @@ class BaseConsumerService(ABC):
         Returns:
             Processed message (can be modified or enriched)
         """
-        # Use MessageProcessor for hybrid approach
+        # Use MessageProcessor for real-time tracking
         from api.services.message_processor import MessageProcessor
+        import asyncio
 
-        processed_message = MessageProcessor.process(message)
+        # Run async process in event loop
+        # Create task and wait for completion synchronously
+        future = asyncio.run_coroutine_threadsafe(
+            MessageProcessor.process(message),
+            self._event_loop
+        )
+        processed_message = future.result(timeout=5.0)  # 5 second timeout
 
         return processed_message

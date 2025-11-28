@@ -3,12 +3,16 @@ Violations Management API
 Manual review and processing of violations
 """
 
-from typing import List, Dict, Any
-from fastapi import APIRouter, HTTPException
+from typing import List, Dict, Any, Optional
+from datetime import datetime
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from loguru import logger
+from sqlalchemy import select, desc, func
 
 from api.services.message_processor import MessageProcessor
+from database.session import async_session_maker
+from database.models import ViolationLog
 
 
 router = APIRouter(
@@ -239,10 +243,212 @@ async def get_statistics():
         stats = MessageProcessor.get_statistics()
 
         return StatisticsResponse(
-            pending_violations=stats['pending_violations'],
-            queue_capacity=stats['queue_capacity']
+            pending_violations=stats.get('pending_violations', 0),
+            queue_capacity=stats.get('queue_capacity', 100)
         )
 
     except Exception as e:
         logger.error(f"Error getting statistics: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ================================================================
+# Database Violation Logs Endpoints
+# ================================================================
+
+@router.get(
+    "/logs",
+    summary="Get violation logs from database",
+    description="Get violation history from database with pagination and filters"
+)
+async def get_violation_logs(
+    skip: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(50, ge=1, le=1000, description="Maximum number of records to return"),
+    user_id: Optional[str] = Query(None, description="Filter by user ID"),
+    zone_id: Optional[str] = Query(None, description="Filter by zone ID"),
+    start_date: Optional[datetime] = Query(None, description="Filter by start date"),
+    end_date: Optional[datetime] = Query(None, description="Filter by end date")
+):
+    """
+    Get violation logs with optional filtering
+
+    Returns violation history from PostgreSQL database.
+    Supports pagination and filtering by user, zone, and date range.
+    """
+    try:
+        async with async_session_maker() as session:
+            # Base query
+            stmt = select(ViolationLog)
+
+            # Apply filters
+            if user_id:
+                stmt = stmt.where(ViolationLog.user_id == user_id)
+            if zone_id:
+                stmt = stmt.where(ViolationLog.zone_id == zone_id)
+            if start_date:
+                stmt = stmt.where(ViolationLog.start_time >= start_date)
+            if end_date:
+                stmt = stmt.where(ViolationLog.start_time <= end_date)
+
+            # Order by most recent first
+            stmt = stmt.order_by(desc(ViolationLog.created_at))
+
+            # Count total
+            count_stmt = select(func.count()).select_from(stmt.subquery())
+            total_result = await session.execute(count_stmt)
+            total = total_result.scalar()
+
+            # Apply pagination
+            stmt = stmt.offset(skip).limit(limit)
+
+            # Execute query
+            result = await session.execute(stmt)
+            violations = result.scalars().all()
+
+            # Convert to dict
+            violations_data = [
+                {
+                    "id": v.id,
+                    "user_id": v.user_id,
+                    "zone_id": v.zone_id,
+                    "user_name": v.user_name,
+                    "zone_name": v.zone_name,
+                    "start_time": v.start_time.isoformat() if v.start_time else None,
+                    "end_time": v.end_time.isoformat() if v.end_time else None,
+                    "duration": v.duration,
+                    "threshold": v.threshold,
+                    "created_at": v.created_at.isoformat() if v.created_at else None
+                }
+                for v in violations
+            ]
+
+            return {
+                "total": total,
+                "skip": skip,
+                "limit": limit,
+                "count": len(violations_data),
+                "violations": violations_data
+            }
+
+    except Exception as e:
+        logger.error(f"Error getting violation logs: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get(
+    "/logs/{violation_id}",
+    summary="Get specific violation log",
+    description="Get detailed information about a specific violation"
+)
+async def get_violation_log(violation_id: int):
+    """
+    Get violation log by ID
+
+    Args:
+        violation_id: Violation log ID
+
+    Returns:
+        Detailed violation information
+    """
+    try:
+        async with async_session_maker() as session:
+            stmt = select(ViolationLog).where(ViolationLog.id == violation_id)
+            result = await session.execute(stmt)
+            violation = result.scalar_one_or_none()
+
+            if not violation:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Violation log not found: {violation_id}"
+                )
+
+            return {
+                "id": violation.id,
+                "user_id": violation.user_id,
+                "zone_id": violation.zone_id,
+                "user_name": violation.user_name,
+                "zone_name": violation.zone_name,
+                "start_time": violation.start_time.isoformat() if violation.start_time else None,
+                "end_time": violation.end_time.isoformat() if violation.end_time else None,
+                "duration": violation.duration,
+                "threshold": violation.threshold,
+                "created_at": violation.created_at.isoformat() if violation.created_at else None
+            }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting violation log: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get(
+    "/logs/stats/summary",
+    summary="Get violation summary statistics",
+    description="Get aggregated statistics about violations"
+)
+async def get_violation_summary():
+    """
+    Get violation summary statistics
+
+    Returns:
+        - Total violations
+        - Violations by user
+        - Violations by zone
+        - Average duration
+        - Recent trends
+    """
+    try:
+        async with async_session_maker() as session:
+            # Total violations
+            total_stmt = select(func.count(ViolationLog.id))
+            total_result = await session.execute(total_stmt)
+            total_violations = total_result.scalar() or 0
+
+            # Average duration
+            avg_stmt = select(func.avg(ViolationLog.duration))
+            avg_result = await session.execute(avg_stmt)
+            avg_duration = avg_result.scalar() or 0
+
+            # Top violating users
+            top_users_stmt = (
+                select(
+                    ViolationLog.user_name,
+                    func.count(ViolationLog.id).label('count')
+                )
+                .group_by(ViolationLog.user_name)
+                .order_by(desc('count'))
+                .limit(10)
+            )
+            top_users_result = await session.execute(top_users_stmt)
+            top_users = [
+                {"user_name": row[0], "violation_count": row[1]}
+                for row in top_users_result
+            ]
+
+            # Top zones
+            top_zones_stmt = (
+                select(
+                    ViolationLog.zone_name,
+                    func.count(ViolationLog.id).label('count')
+                )
+                .group_by(ViolationLog.zone_name)
+                .order_by(desc('count'))
+                .limit(10)
+            )
+            top_zones_result = await session.execute(top_zones_stmt)
+            top_zones = [
+                {"zone_name": row[0], "violation_count": row[1]}
+                for row in top_zones_result
+            ]
+
+            return {
+                "total_violations": total_violations,
+                "average_duration": round(float(avg_duration), 2) if avg_duration else 0,
+                "top_users": top_users,
+                "top_zones": top_zones
+            }
+
+    except Exception as e:
+        logger.error(f"Error getting violation summary: {e}")
         raise HTTPException(status_code=500, detail=str(e))
